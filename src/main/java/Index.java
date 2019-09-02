@@ -232,10 +232,10 @@ public class Index {
              */
 
             // FIXME: OPTIMIZATION REQUIRED
-            SortedList<PostingList> blockA = new SortedList<>(FileUtil.readPostingList(bf1.getChannel(), index), CollectionUtil.POSTING_LIST_COMPARATOR);
-            SortedList<PostingList> blockB = new SortedList<>(FileUtil.readPostingList(bf2.getChannel(), index), CollectionUtil.POSTING_LIST_COMPARATOR);
+            AutoSortList<PostingList> blockA = new AutoSortList<>(FileUtil.readPostingList(bf1.getChannel(), index), CollectionUtil.POSTING_LIST_COMPARATOR);
+            AutoSortList<PostingList> blockB = new AutoSortList<>(FileUtil.readPostingList(bf2.getChannel(), index), CollectionUtil.POSTING_LIST_COMPARATOR);
 
-            SortedList<PostingList> finalList = IndexHelpers.mergePostingList(blockA, blockB);
+            AutoSortList<PostingList> finalList = IndexHelpers.mergePostingList(blockA, blockB);
 
             // System.out.println("final: " + finalList);
 
