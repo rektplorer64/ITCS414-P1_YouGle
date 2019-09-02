@@ -9,7 +9,7 @@ public class IndexHelpers {
         return combiningDuplicatePostingList(mergedPostingList);
     }
 
-    private static AutoSortList<PostingList> combiningDuplicatePostingList(ArrayList<PostingList> lists) {
+    public static AutoSortList<PostingList> combiningDuplicatePostingList(ArrayList<PostingList> lists) {
         HashMap<Integer, TreeSet<Integer>> termIdListPair = new HashMap<>();
 
         // Construct a HashMap that contains every entry

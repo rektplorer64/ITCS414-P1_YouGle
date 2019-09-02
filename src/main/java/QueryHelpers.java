@@ -39,26 +39,25 @@ public class QueryHelpers {
 
         if (postingLists.isEmpty()){
             return new ArrayList<>();
+        }else if (postingLists.size() == 1){
+            return new ArrayList<>(postingLists.get(0).getList());
         }
 
-        PostingList accumulatePosting = postingLists.get(0);
-        for (int i = 0; i < postingLists.size(); i++) {
+        ArrayList<Integer> firstElem = new ArrayList<>(postingLists.get(0).getList());
+        ArrayList<Integer> secondElem = new ArrayList<>(postingLists.get(1).getList());
+        List<Integer> accumulateIntersectedDocId = CollectionUtil.intersect(firstElem, secondElem,CollectionUtil.INT_COMPARATOR);
+
+        for (int i = 1; i < postingLists.size(); i++) {
             PostingList nextPosting = null;
             try {
                 nextPosting = postingLists.get(i + 1);
             } catch (IndexOutOfBoundsException e) {
                 break;
             }
-            List<Integer> intersectedPostings = CollectionUtil.intersect(accumulatePosting.getList(),
+            accumulateIntersectedDocId = CollectionUtil.intersect(accumulateIntersectedDocId,
                     nextPosting.getList(), CollectionUtil.INT_COMPARATOR);
-
-            for (Integer posting : intersectedPostings) {
-                if (!accumulatePosting.getList().contains(posting)) {
-                    accumulatePosting.getList().add(posting);
-                }
-            }
         }
-        return accumulatePosting.getList();
+        return accumulateIntersectedDocId;
     }
 
 }

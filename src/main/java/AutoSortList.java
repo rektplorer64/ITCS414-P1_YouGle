@@ -1,34 +1,70 @@
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 
 /**
  * A simple Wrapper Class that mimics the idea of SortedList
  * @param <T>
  */
-public class AutoSortList<T> implements Collection<T> {
+public class AutoSortList<T> extends ArrayList<T> {
 
-    private ArrayList<T> list;
     private Comparator<T> comparator;
 
     public AutoSortList(Comparator<T> comparator){
         this(new ArrayList<>(), comparator);
     }
 
-    public AutoSortList(ArrayList<T> list, Comparator<T> comparator){
-        this.list = new ArrayList<>(list);
+    public AutoSortList(@NotNull Collection<? extends T> c, Comparator<T> comparator) {
+        super(c);
         this.comparator = comparator;
-        sort();
-    }
-
-    public AutoSortList(AutoSortList<T> autoSortListA) {
-        this(autoSortListA.list, autoSortListA.comparator);
     }
 
     @Override
-    public boolean add(T item){
-        boolean isSuccessful = list.add(item);
-        sort();
-        return isSuccessful;
+    public boolean add(T t) {
+        final boolean outcome = super.add(t);
+        this.sort(comparator);
+        return outcome;
+    }
+
+    @Override
+    public void add(int index, T element) {
+        super.add(index, element);
+        this.sort(comparator);
+    }
+
+    @Override
+    public boolean addAll(Collection<? extends T> c) {
+        final boolean outcome = super.addAll(c);
+        this.sort(comparator);
+        return outcome;
+    }
+
+    @Override
+    public boolean addAll(int index, Collection<? extends T> c) {
+        final boolean outcome = super.addAll(index, c);
+        this.sort(comparator);
+        return outcome;
+    }
+
+    @Override
+    public void replaceAll(UnaryOperator<T> operator) {
+        super.replaceAll(operator);
+        this.sort(comparator);
+    }
+
+    @Override
+    public boolean removeIf(Predicate<? super T> filter) {
+        final boolean outcome = super.removeIf(filter);
+        this.sort(comparator);
+        return outcome;
+    }
+
+    @Override
+    public AutoSortList<T> clone() {
+        return new AutoSortList<T>((Collection<? extends T>) super.clone(), comparator);
     }
 
     public Comparator<T> getComparator() {
@@ -39,88 +75,4 @@ public class AutoSortList<T> implements Collection<T> {
         this.comparator = comparator;
     }
 
-    public T get(int index){
-        return list.get(index);
-    }
-
-    @Override
-    public int size() {
-        return list.size();
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return list.isEmpty();
-    }
-
-    @Override
-    public boolean contains(Object o) {
-        return list.contains(o);
-    }
-
-    @Override
-    public Iterator<T> iterator() {
-        return list.iterator();
-    }
-
-    @Override
-    public Object[] toArray() {
-        return list.toArray();
-    }
-
-    @Override
-    public <T1> T1[] toArray(T1[] a) {
-        return list.toArray(a);
-    }
-
-    @Override
-    public boolean remove(Object o) {
-        return list.remove(o);
-    }
-
-    @Override
-    public boolean containsAll(Collection<?> c) {
-        return list.containsAll(c);
-    }
-
-    @Override
-    public boolean addAll(Collection<? extends T> c) {
-        boolean isSuccessful = list.addAll(c);
-        sort();
-        return isSuccessful;
-    }
-
-    @Override
-    public boolean removeAll(Collection<?> c) {
-        boolean isSuccessful = list.removeAll(c);
-        sort();
-        return isSuccessful;
-    }
-
-    @Override
-    public boolean retainAll(Collection<?> c) {
-        return list.retainAll(c);
-    }
-
-    @Override
-    public void clear() {
-        list.clear();
-    }
-
-    private void sort(){
-        this.list.sort(this.comparator);
-    }
-
-    @Override
-    public String toString() {
-        return list.toString();
-    }
-
-    public ArrayList<T> getList() {
-        return list;
-    }
-
-    public AutoSortList<T> clone(){
-        return new AutoSortList<T>((ArrayList<T>) this.list.clone(), this.comparator);
-    }
 }

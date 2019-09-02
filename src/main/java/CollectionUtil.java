@@ -16,29 +16,30 @@ public class CollectionUtil {
         }
     };
 
-    public static <T> AutoSortList<T> intersect(AutoSortList<T> autoSortListA, AutoSortList<T> autoSortListB) {
-        Comparator<T> comparator = autoSortListA.getComparator();
-        ArrayList<T> intersection = new ArrayList<>(intersect(autoSortListA.getList(), autoSortListB.getList(), comparator));
+    public static <T> AutoSortList<T> intersect(AutoSortList<T> listA, AutoSortList<T> listB) {
+        Comparator<T> comparator = listA.getComparator();
+        ArrayList<T> intersection = new ArrayList<>(intersect(listA, listB, comparator));
         return new AutoSortList<T>(intersection, comparator);
     }
 
-    public static <T> List<T> intersect(List<T> sortedListA, List<T> sortedListB, Comparator<T> c) {
+    public static <T> List<T> intersect(List<T> listA, List<T> listB, Comparator<T> c) {
         ArrayList<T> intersected = new ArrayList<>();
 
         int i = 0, j = 0;
-        while (i < sortedListA.size() && j < sortedListB.size()){
-            int comparison = c.compare(sortedListA.get(i), sortedListB.get(j));
-            if (comparison > 0){
+        while (i < listA.size() && j < listB.size()){
+            int comparison = c.compare(listA.get(i), listB.get(j));
+            if (comparison < 0){
                 i++;
-            }else if (comparison < 0){
+            }else if (comparison > 0){
                 j++;
-
             }else{
-                intersected.add(sortedListB.get(j++));
+                System.out.println("Intersected: " + listB.get(j));
+                intersected.add(listB.get(j++));
                 i++;
             }
         }
 
+        System.out.println(intersected);
         intersected.sort(c);
         return intersected;
 
@@ -46,42 +47,42 @@ public class CollectionUtil {
         // return sortedListA;
     }
 
-    public static <T> List<T> symmetricDifferentiate(List<T> sortedListA, List<T> sortedListB, Comparator<T> c) {
+    public static <T> List<T> symmetricDifferentiate(List<T> listA, List<T> listB, Comparator<T> c) {
 
-        List<T> intersection = intersect(sortedListA, sortedListB, c);
+        List<T> intersection = intersect(listA, listB, c);
 
-        List<T> union = new ArrayList<>(sortedListA);
-        union.addAll(sortedListB);
+        List<T> union = new ArrayList<>(listA);
+        union.addAll(listB);
 
         union.removeAll(intersection);
         return union;
     }
 
-    public static <T> AutoSortList<T> symmetricDifferentiate(AutoSortList<T> autoSortListA, AutoSortList<T> autoSortListB) {
-        Comparator<T> c = autoSortListA.getComparator();
-        ArrayList<T> arrayList = new ArrayList<T>(symmetricDifferentiate(autoSortListA.getList(), autoSortListB.getList(), c));
-        return new AutoSortList<T>(arrayList, autoSortListA.getComparator());
+    public static <T> AutoSortList<T> symmetricDifferentiate(AutoSortList<T> listA, AutoSortList<T> listB) {
+        Comparator<T> c = listA.getComparator();
+        ArrayList<T> arrayList = new ArrayList<T>(symmetricDifferentiate(listA, listB, c));
+        return new AutoSortList<T>(arrayList, listA.getComparator());
     }
 
-    public static <T> Pair<AutoSortList<T>, AutoSortList<T>> allInOne(AutoSortList<T> autoSortListA, AutoSortList<T> autoSortListB) {
+    public static <T> Pair<AutoSortList<T>, AutoSortList<T>> allInOne(AutoSortList<T> listA, AutoSortList<T> listB) {
         ArrayList<T> intersected = new ArrayList<>();
         ArrayList<T> symmetricDiff = new ArrayList<>();
 
         int i = 0, j = 0;
-        while (i < autoSortListA.size() && j < autoSortListB.size()){
-            int comparison = autoSortListA.getComparator().compare(autoSortListA.get(i), autoSortListB.get(j));
+        while (i < listA.size() && j < listB.size()){
+            int comparison = listA.getComparator().compare(listA.get(i), listB.get(j));
             if (comparison > 0){
-                symmetricDiff.add(autoSortListA.get(i));
+                symmetricDiff.add(listA.get(i));
                 i++;
             }else if (comparison < 0){
-                symmetricDiff.add(autoSortListB.get(j));
+                symmetricDiff.add(listB.get(j));
                 j++;
             }else{
-                intersected.add(autoSortListB.get(j++));
+                intersected.add(listB.get(j++));
                 i++;
             }
         }
 
-        return new Pair<>(new AutoSortList<T>(intersected, autoSortListA.getComparator()), new AutoSortList<T>(symmetricDiff, autoSortListA.getComparator()));
+        return new Pair<>(new AutoSortList<T>(intersected, listA.getComparator()), new AutoSortList<T>(symmetricDiff, listA.getComparator()));
     }
 }
