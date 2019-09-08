@@ -27,7 +27,6 @@ public class Index {
     private static BaseIndex index = null;
 
 
-
     /*
      * Write a posting list to the given file
      * You should record the file position of this posting list
@@ -39,6 +38,8 @@ public class Index {
         /*
          * TODO: Your code here
          */
+        postingDict.get(posting.getTermId()).setFirst(fc.position());
+        index.writePosting(fc, posting);
     }
 
 
@@ -46,7 +47,6 @@ public class Index {
      * Pop next element if there is one, otherwise return null
      *
      * @param iter an iterator that contains integers
-     *
      * @return next element or null
      */
     private static Integer popNextOrNull(Iterator<Integer> iter) {
@@ -124,7 +124,8 @@ public class Index {
             // Lists all text file inside
             File[] filelist = blockDir.listFiles();
 
-            Map<Integer, Set<Integer>> tempPostingLists = new TreeMap<>();          // Temporary Data Structure for storing PostingList before conversion
+            Map<Integer, Set<Integer>> blockPostingLists = new TreeMap<>();          // Temporary Data Structure for storing PostingList before conversion
+            // Map<Integer, Pair<Long, Integer>> blockPostingDict = new TreeMap<>();
 
             /* For each file */
             for (File file : filelist) {
@@ -139,6 +140,7 @@ public class Index {
                 BufferedReader reader = new BufferedReader(new FileReader(file));
                 String line;
 
+
                 while ((line = reader.readLine()) != null) {                            // Read each line of the Text File
                     String[] tokens = line.trim().split("\\s+");                  // Splits the String By white spaces (So we can get the Array Of Word Strings aka Tokens) **
                     for (String token : tokens) {
@@ -149,27 +151,30 @@ public class Index {
                          */
 
                         // TODO: Related Data Containers: termDict, postingDict, postingList
+                        int currentWordId;
                         String manipulatedToken = token.toLowerCase().trim();
                         if (!termDict.containsKey(manipulatedToken)) {              // If the term dict does not contain the token
                             termDict.put(manipulatedToken, ++wordIdCounter);        // Put it into the termDict TreeMap
+                            currentWordId = wordIdCounter;
+                        } else {
+                            currentWordId = termDict.get(manipulatedToken);
                         }
 
-                        if (!postingDict.containsKey(wordIdCounter)) {                                        // If PostingDict does not contain that termId
-                            postingDict.put(wordIdCounter, Pair.make(-1L, 1));                       // Put it in, Mark byte position as -1L
-                        } else {                                                                               // If it is already contain that termId
-                            Pair<Long, Integer> indexPosWithWordFreq = postingDict.get(wordIdCounter);
-                            indexPosWithWordFreq.setSecond(indexPosWithWordFreq.getSecond() + 1);            // Increment the FREQUENCY up by 1
+                        if (!postingDict.containsKey(currentWordId)) {                                        // If PostingDict does not contain that termId
+                            postingDict.put(currentWordId, null);                       // Put it in, Mark byte position as -1L
                         }
 
-                        if (!tempPostingLists.containsKey(wordIdCounter)) {
-                            tempPostingLists.put(wordIdCounter, new TreeSet<>());
+                        if (!blockPostingLists.containsKey(currentWordId)) {
+                            blockPostingLists.put(currentWordId, new TreeSet<>());
                         }
+
                         // FIXME: Validate Performance vs. Ordinary List w/ if-else
-                        tempPostingLists.get(wordIdCounter).add(docIdCounter);
+                        blockPostingLists.get(currentWordId).add(docId); // System.out.println("Added termId: " + termDict.get(token) + " == " + token + " (doc=" + docId + ")");
                     }
                 }
                 reader.close();
             }
+            // System.out.println("block " + block.getName() + ", postingList=" + blockPostingLists);
 
 
             /* Sort and output */
@@ -187,20 +192,24 @@ public class Index {
              */
 
             /* Form an Array of PostingList */
-            ArrayList<PostingList> postingListArray = new ArrayList<>();
-            for (int key : tempPostingLists.keySet()) {
-                // System.out.println("Added " + key);
-                postingListArray.add(new PostingList(key, new ArrayList<>(tempPostingLists.get(key))));
-            }
+            for (int key : blockPostingLists.keySet()) {
+                PostingList newPosting = new PostingList(key, new ArrayList<>(blockPostingLists.get(key)));
 
-            for (PostingList postingList : postingListArray) {
-                // TODO: Write Posting List to file
-                index.writePosting(bfc.getChannel(), postingList);
+                // Count up the frequency
+                if (postingDict.containsKey(newPosting.getTermId())) {
+                    Pair<Long, Integer> pair = postingDict.get(newPosting.getTermId());
+                    if (pair == null) {
+                        postingDict.put(newPosting.getTermId(), new Pair<>(-1L, 0));
+                        pair = postingDict.get(newPosting.getTermId());
+                    }
+                    pair.setSecond(pair.getSecond() + newPosting.getList().size());
+                }
+                // System.out.println(newPosting.getTermId() + " -> " + newPosting.getList());
+                index.writePosting(bfc.getChannel(), newPosting);
             }
-
             bfc.close();
         }
-        // System.out.println(tempPostingLists);
+        // System.out.println(postingDict + "\n");
 
         /* Required: output total number of files. */
         System.out.println("Total Files Indexed: " + totalFileCount);
@@ -232,17 +241,15 @@ public class Index {
              */
 
             // FIXME: OPTIMIZATION REQUIRED
-            AutoSortList<PostingList> blockA = new AutoSortList<>(FileUtil.readPostingList(bf1.getChannel(), index), CollectionUtil.POSTING_LIST_COMPARATOR);
-            AutoSortList<PostingList> blockB = new AutoSortList<>(FileUtil.readPostingList(bf2.getChannel(), index), CollectionUtil.POSTING_LIST_COMPARATOR);
-
-            AutoSortList<PostingList> finalList = IndexHelpers.mergePostingList(blockA, blockB);
+            AutoSortList<PostingList> finalList
+                    = IndexHelpers.mergePostingList(FileUtil.readPostingList(bf1.getChannel(), index)
+                    , FileUtil.readPostingList(bf2.getChannel(), index));
 
             // System.out.println("final: " + finalList);
 
             // TODO: Loops thru SortedList
             for (PostingList posting : finalList) {
-                postingDict.get(posting.getTermId()).setFirst(mf.getChannel().position());
-                index.writePosting(mf.getChannel(), posting);
+                writePosting(mf.getChannel(), posting);
             }
 
             bf1.close();

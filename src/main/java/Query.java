@@ -37,7 +37,12 @@ public class Query {
         /*
          * TODO: Your code here
          */
-        return null;
+        Long bytePosition = posDict.get(termId);
+        if (bytePosition == null) {
+            return null;
+        }
+        fc.position(bytePosition);
+        return index.readPosting(fc);
     }
 
 
@@ -118,27 +123,25 @@ public class Query {
 
         // Get TermId by query string
         ArrayList<Integer> termIds = QueryHelpers.getTermIdByQuery(queries, termDict);
-        System.out.println("Term Id = " + termIds);
+        // System.out.println("Term Id = " + termIds);
 
         // Fetch Byte Position inside the index file of each Term (termId: Int -> PostingList)
         HashMap<Integer, PostingList> termIdPostingListMap = new HashMap<>();
         for (Integer termId : termIds) {		// For each term Id
             try {
-                Long bytePosition = posDict.get(termId);
             	// Put PostingList to the Map; Null if there is none
-                termIdPostingListMap.put(termId, QueryHelpers.getPostingListFromFile(index, indexFile, bytePosition));
+                termIdPostingListMap.put(termId, readPosting(indexFile.getChannel(), termId));
             } catch (IOException | NullPointerException e) {
                 e.printStackTrace();
             }
         }
 
         // System.out.println("Map Size = " + termIdPostingListMap.size());
-        List<Integer> intersectedDocId = QueryHelpers.booleanRetrieval(new ArrayList<>(termIdPostingListMap.values()));
 
-        System.out.println(intersectedDocId);
-        System.out.println();
+        // System.out.println(intersectedDocId);
+        // System.out.println();
 
-        return intersectedDocId;
+        return QueryHelpers.booleanRetrieval(new ArrayList<>(termIdPostingListMap.values()));
     }
 
     String outputQueryResult(List<Integer> res) {

@@ -26,20 +26,22 @@ public class CollectionUtil {
         ArrayList<T> intersected = new ArrayList<>();
 
         int i = 0, j = 0;
-        while (i < listA.size() && j < listB.size()){
+        int sizeA = listA.size(), sizeB = listB.size();
+
+        while (i < sizeA && j < sizeB){
             int comparison = c.compare(listA.get(i), listB.get(j));
             if (comparison < 0){
                 i++;
             }else if (comparison > 0){
                 j++;
             }else{
-                System.out.println("Intersected: " + listB.get(j));
+                // System.out.println("Intersected: " + listB.get(j));
                 intersected.add(listB.get(j++));
                 i++;
             }
         }
 
-        System.out.println(intersected);
+        // System.out.println(intersected);
         intersected.sort(c);
         return intersected;
 
@@ -84,5 +86,21 @@ public class CollectionUtil {
         }
 
         return new Pair<>(new AutoSortList<T>(intersected, listA.getComparator()), new AutoSortList<T>(symmetricDiff, listA.getComparator()));
+    }
+
+    public static String postingListArrayToString(List<PostingList> postingLists){
+        StringBuilder stringBuilder = new StringBuilder("[");
+        for(PostingList p : postingLists){
+            stringBuilder.append(p.getTermId()).append("->{");
+            for (int i = 0; i < p.getList().size(); i++){
+                stringBuilder.append(p.getList().get(i));
+                if (i < p.getList().size() - 1){
+                    stringBuilder.append(", ");
+                }
+            }
+            stringBuilder.append("}, ");
+        }
+        stringBuilder.append("]");
+        return stringBuilder.toString();
     }
 }

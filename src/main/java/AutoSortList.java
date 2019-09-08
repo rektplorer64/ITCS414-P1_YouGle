@@ -25,7 +25,7 @@ public class AutoSortList<T> extends ArrayList<T> {
     @Override
     public boolean add(T t) {
         final boolean outcome = super.add(t);
-        this.sort(comparator);
+        Collections.sort(this, comparator);
         return outcome;
     }
 

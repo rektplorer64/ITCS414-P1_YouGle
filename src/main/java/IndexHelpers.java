@@ -2,11 +2,10 @@ import java.util.*;
 
 public class IndexHelpers {
 
-    public static AutoSortList<PostingList> mergePostingList(AutoSortList<PostingList> block1, AutoSortList<PostingList> block2) {
+    public static AutoSortList<PostingList> mergePostingList(ArrayList<PostingList> block1, ArrayList<PostingList> block2) {
         // System.out.println("Started Merging → Block 1 = " + block1.size() + " | Block 2 = " + block2.size());
-        ArrayList<PostingList> mergedPostingList = new ArrayList<>(block1);
-        mergedPostingList.addAll(block2);
-        return combiningDuplicatePostingList(mergedPostingList);
+        block1.addAll(block2);
+        return combiningDuplicatePostingList(block1);
     }
 
     public static AutoSortList<PostingList> combiningDuplicatePostingList(ArrayList<PostingList> lists) {

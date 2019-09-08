@@ -72,7 +72,7 @@ public class BasicIndex implements BaseIndex {
 		dataToBeWritten.add(p.getList().size());
 		dataToBeWritten.addAll(p.getList());
 
-		System.out.println("Writing " + p.getTermId() + " w/ " + p.getList());
+		// System.out.println("Writing " + p.getTermId() + " w/ " + p.getList());
 		try {
 			for (int i = 0; i < dataToBeWritten.size(); i++){
 				intBuffer.clear();
@@ -81,9 +81,9 @@ public class BasicIndex implements BaseIndex {
 
 				fc.write(intBuffer);
 
-				System.out.println(i + "th W BytePos = " + fc.position());
+				// System.out.println(i + "th W BytePos = " + fc.position());
 			}
-			System.out.println();
+			// System.out.println();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
