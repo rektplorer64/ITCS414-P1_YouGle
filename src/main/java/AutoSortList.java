@@ -20,12 +20,13 @@ public class AutoSortList<T> extends ArrayList<T> {
     public AutoSortList(@NotNull Collection<? extends T> c, Comparator<T> comparator) {
         super(c);
         this.comparator = comparator;
+        this.sort(comparator);
     }
 
     @Override
     public boolean add(T t) {
         final boolean outcome = super.add(t);
-        Collections.sort(this, comparator);
+        this.sort(comparator);
         return outcome;
     }
 

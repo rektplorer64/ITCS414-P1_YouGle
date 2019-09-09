@@ -1,6 +1,11 @@
+import org.jetbrains.annotations.NotNull;
+
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.channels.FileChannel;
 import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class Index {
 
@@ -168,7 +173,6 @@ public class Index {
                             blockPostingLists.put(currentWordId, new TreeSet<>());
                         }
 
-                        // FIXME: Validate Performance vs. Ordinary List w/ if-else
                         blockPostingLists.get(currentWordId).add(docId); // System.out.println("Added termId: " + termDict.get(token) + " == " + token + " (doc=" + docId + ")");
                     }
                 }
@@ -188,7 +192,6 @@ public class Index {
             /*
              * TODO: Your code here
              *       Write all posting lists for all terms to file (bfc)
-             *
              */
 
             /* Form an Array of PostingList */
@@ -208,6 +211,7 @@ public class Index {
                 index.writePosting(bfc.getChannel(), newPosting);
             }
             bfc.close();
+            blockPostingLists = null;
         }
         // System.out.println(postingDict + "\n");
 
@@ -240,18 +244,72 @@ public class Index {
              *
              */
 
+            // CountDownLatch countDownLatch = new CountDownLatch(2);
+            // ExecutorService es = Executors.newFixedThreadPool(2);
+            // List<Callable<List<PostingList>>> postingThread = new ArrayList<>(2);
+            // postingThread.add(new Callable<List<PostingList>>() {
+            //     @Override
+            //     public List<PostingList> call() throws Exception {
+            //         List<PostingList> result = FileUtil.readPostingList(bf1.getChannel(), index);
+            //         countDownLatch.countDown();
+            //         return result;
+            //     }
+            // });
+            // postingThread.add(new Callable<List<PostingList>>() {
+            //     @Override
+            //     public List<PostingList> call() throws Exception {
+            //         List<PostingList> result = FileUtil.readPostingList(bf2.getChannel(), index);
+            //         countDownLatch.countDown();
+            //         return result;
+            //     }
+            // });
+            //
+            // List<Future<List<PostingList>>> futures = null;
+            // try {
+            //     futures = es.invokeAll(postingThread);
+            //     countDownLatch.await();
+            // } catch (InterruptedException e) {
+            //     e.printStackTrace();
+            // }
+
+            // List<PostingList> finalList = null;
+            // try {
+            //     finalList = IndexHelpers.mergePostingList(
+            //             futures.get(0).get()
+            //                     , futures.get(1).get());
+            // } catch (InterruptedException e) {
+            //     e.printStackTrace();
+            // } catch (ExecutionException e) {
+            //     e.printStackTrace();
+            // }
+
             // FIXME: OPTIMIZATION REQUIRED
-            AutoSortList<PostingList> finalList
-                    = IndexHelpers.mergePostingList(FileUtil.readPostingList(bf1.getChannel(), index)
-                    , FileUtil.readPostingList(bf2.getChannel(), index));
+            // List<PostingList> finalList = new AutoSortList<>(IndexHelpers.mergePostingList(
+            //         FileUtil.readPostingList(bf1.getChannel(), index),
+            //         FileUtil.readPostingList(bf2.getChannel(), index)), CollectionUtil.POSTING_LIST_COMPARATOR);
+
+            long startTime1 = System.currentTimeMillis();
+
+            List<PostingList> finalList = IndexHelpers.mergePostingList(
+                    FileUtil.readPostingList(bf1.getChannel(), index),
+                    FileUtil.readPostingList(bf2.getChannel(), index));
+
+            finalList.sort(CollectionUtil.POSTING_LIST_COMPARATOR);
 
             // System.out.println("final: " + finalList);
+            long endTime1 = System.currentTimeMillis();
+            System.out.println(combfile.getName() + " Time Used: " + ((endTime1 - startTime1) / 1000.0) + " secs");
 
             // TODO: Loops thru SortedList
+            long startTime2 = System.currentTimeMillis();
             for (PostingList posting : finalList) {
                 writePosting(mf.getChannel(), posting);
             }
+            long endTime2 = System.currentTimeMillis();
+            System.out.println(combfile.getName() + " \tWrite Time Used: " + ((endTime2 - startTime2) / 1000.0) + " secs");
 
+            finalList = null;
+            System.gc();
             bf1.close();
             bf2.close();
             mf.close();

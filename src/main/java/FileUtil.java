@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.TreeSet;
 
 public class FileUtil {
     public static void purgeDirectory(File dir) {
@@ -23,5 +24,13 @@ public class FileUtil {
             e.printStackTrace();
             throw e;
         }
+    }
+
+    public static final byte[] intToByteArray(int value) {
+        return new byte[] {
+                (byte)(value >>> 24),
+                (byte)(value >>> 16),
+                (byte)(value >>> 8),
+                (byte)value};
     }
 }
