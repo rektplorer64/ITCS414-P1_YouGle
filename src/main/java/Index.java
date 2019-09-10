@@ -243,62 +243,24 @@ public class Index {
              *       the two blocks (based on term ID, perhaps?).
              *
              */
+            long startTimeRead = System.currentTimeMillis();
 
-            // CountDownLatch countDownLatch = new CountDownLatch(2);
-            // ExecutorService es = Executors.newFixedThreadPool(2);
-            // List<Callable<List<PostingList>>> postingThread = new ArrayList<>(2);
-            // postingThread.add(new Callable<List<PostingList>>() {
-            //     @Override
-            //     public List<PostingList> call() throws Exception {
-            //         List<PostingList> result = FileUtil.readPostingList(bf1.getChannel(), index);
-            //         countDownLatch.countDown();
-            //         return result;
-            //     }
-            // });
-            // postingThread.add(new Callable<List<PostingList>>() {
-            //     @Override
-            //     public List<PostingList> call() throws Exception {
-            //         List<PostingList> result = FileUtil.readPostingList(bf2.getChannel(), index);
-            //         countDownLatch.countDown();
-            //         return result;
-            //     }
-            // });
-            //
-            // List<Future<List<PostingList>>> futures = null;
-            // try {
-            //     futures = es.invokeAll(postingThread);
-            //     countDownLatch.await();
-            // } catch (InterruptedException e) {
-            //     e.printStackTrace();
-            // }
+            List<PostingList> postingListA = FileUtil.readPostingList(bf1.getChannel(), index);
+            List<PostingList> postingListB = FileUtil.readPostingList(bf2.getChannel(), index);
 
-            // List<PostingList> finalList = null;
-            // try {
-            //     finalList = IndexHelpers.mergePostingList(
-            //             futures.get(0).get()
-            //                     , futures.get(1).get());
-            // } catch (InterruptedException e) {
-            //     e.printStackTrace();
-            // } catch (ExecutionException e) {
-            //     e.printStackTrace();
-            // }
+            long endTimeRead = System.currentTimeMillis();
 
-            // FIXME: OPTIMIZATION REQUIRED
-            // List<PostingList> finalList = new AutoSortList<>(IndexHelpers.mergePostingList(
-            //         FileUtil.readPostingList(bf1.getChannel(), index),
-            //         FileUtil.readPostingList(bf2.getChannel(), index)), CollectionUtil.POSTING_LIST_COMPARATOR);
+            System.out.println(combfile.getName() + "\n\tRead Time Used: " + ((endTimeRead - startTimeRead) / 1000.0) + " secs");
 
-            long startTime1 = System.currentTimeMillis();
+            long startTimeProcess = System.currentTimeMillis();
 
-            List<PostingList> finalList = IndexHelpers.mergePostingList(
-                    FileUtil.readPostingList(bf1.getChannel(), index),
-                    FileUtil.readPostingList(bf2.getChannel(), index));
-
+            List<PostingList> finalList = IndexHelpers.mergePostingList(postingListA, postingListB);
             finalList.sort(CollectionUtil.POSTING_LIST_COMPARATOR);
 
+            long endTimeProcess = System.currentTimeMillis();
+            System.out.println("\tMerge Time Used: " + ((endTimeProcess - startTimeProcess) / 1000.0) + " secs");
+
             // System.out.println("final: " + finalList);
-            long endTime1 = System.currentTimeMillis();
-            System.out.println(combfile.getName() + " Time Used: " + ((endTime1 - startTime1) / 1000.0) + " secs");
 
             // TODO: Loops thru SortedList
             long startTime2 = System.currentTimeMillis();
@@ -306,7 +268,7 @@ public class Index {
                 writePosting(mf.getChannel(), posting);
             }
             long endTime2 = System.currentTimeMillis();
-            System.out.println(combfile.getName() + " \tWrite Time Used: " + ((endTime2 - startTime2) / 1000.0) + " secs");
+            System.out.println("\tWrite Time Used: " + ((endTime2 - startTime2) / 1000.0) + " secs");
 
             finalList = null;
             System.gc();
