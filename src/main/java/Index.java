@@ -1,11 +1,6 @@
-import org.jetbrains.annotations.NotNull;
-
 import java.io.*;
-import java.lang.reflect.Array;
 import java.nio.channels.FileChannel;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 public class Index {
 
@@ -243,10 +238,12 @@ public class Index {
              *       the two blocks (based on term ID, perhaps?).
              *
              */
+
             long startTimeRead = System.currentTimeMillis();
 
-            List<PostingList> postingListA = FileUtil.readPostingList(bf1.getChannel(), index);
-            List<PostingList> postingListB = FileUtil.readPostingList(bf2.getChannel(), index);
+            //
+            List<PostingList> postingListA = FileUtil.readAllPostingLists(bf1.getChannel(), index);
+            List<PostingList> postingListB = FileUtil.readAllPostingLists(bf2.getChannel(), index);
 
             long endTimeRead = System.currentTimeMillis();
 
@@ -255,9 +252,10 @@ public class Index {
             long startTimeProcess = System.currentTimeMillis();
 
             List<PostingList> finalList = IndexHelpers.mergePostingList(postingListA, postingListB);
-            finalList.sort(CollectionUtil.POSTING_LIST_COMPARATOR);
+            finalList.sort(Query.CollectionUtil.POSTING_LIST_COMPARATOR);
 
             long endTimeProcess = System.currentTimeMillis();
+
             System.out.println("\tMerge Time Used: " + ((endTimeProcess - startTimeProcess) / 1000.0) + " secs");
 
             // System.out.println("final: " + finalList);
@@ -330,10 +328,113 @@ public class Index {
         /* Get root directory */
         String root = args[1];
 
-
         /* Get output directory */
         String output = args[2];
         runIndexer(className, root, output);
     }
 
+    public static class IndexHelpers {
+
+        public static ArrayList<PostingList> mergePostingList(FileChannel fc1, FileChannel fc2){
+
+            long i = 0;
+            long sizeA = 0;
+            try {
+                i = fc1.position();
+                sizeA = fc1.size();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            long j = 0;
+            long sizeB = 0;
+            try {
+                j = fc2.position();
+                sizeB = fc2.size();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            Comparator<PostingList> c = Query.CollectionUtil.POSTING_LIST_COMPARATOR;
+
+            ArrayList<PostingList> mergedResult = new ArrayList<>();
+            while (i < sizeA && j < sizeB){
+                PostingList p1 = index.readPosting(fc1);
+                PostingList p2 = index.readPosting(fc2);
+                int comparison = c.compare(p1, p2);
+                if (comparison < 0){
+                    mergedResult.add(p1);
+                }else if (comparison > 0){
+                    mergedResult.add(p2);
+                }else{
+                    ArrayList<PostingList> merged = new ArrayList<PostingList>();
+                    merged.add(p1);
+                    merged.add(p2);
+                    mergedResult.addAll(combiningDuplicatePostingList(merged));
+                    i++;
+                }
+            }
+
+            return mergedResult;
+        }
+
+        public static List<PostingList> mergePostingList(List<PostingList> block1, List<PostingList> block2) {
+            // System.out.println("Started Merging → Block 1 = " + block1.size() + " | Block 2 = " + block2.size());
+            block1.addAll(block2);
+            return combiningDuplicatePostingList(block1);
+        }
+
+        public static List<PostingList> combiningDuplicatePostingList(List<PostingList> lists) {
+            HashMap<Integer, TreeSet<Integer>> termIdListPair = new HashMap<>();
+
+            // Construct a HashMap that contains every entry
+            // Combines duplications
+            for (PostingList p : lists) {
+                if (!termIdListPair.containsKey(p.getTermId())) {
+                    termIdListPair.put(p.getTermId(), new TreeSet<>());
+                }
+                termIdListPair.get(p.getTermId()).addAll(p.getList());
+            }
+
+            List<PostingList> result = new ArrayList<>();
+
+
+            for (Map.Entry<Integer, TreeSet<Integer>> entry : termIdListPair.entrySet()) {
+                result.add(new PostingList(entry.getKey(), new ArrayList<>(entry.getValue())));
+            }
+            return result;
+        }
+
+    }
+
+    public static class FileUtil {
+        public static void purgeDirectory(File dir) {
+            for (File file: dir.listFiles()) {
+                if (file.isDirectory())
+                    purgeDirectory(file);
+                file.delete();
+            }
+        }
+
+        public static ArrayList<PostingList> readAllPostingLists(FileChannel fileChannel, BaseIndex index) throws IOException {
+            ArrayList<PostingList> postingLists = new ArrayList<>();
+            try {
+                while (fileChannel.position() <= fileChannel.size() - 1) {
+                    postingLists.add(index.readPosting(fileChannel));
+                }
+                return postingLists;
+            } catch (IOException e) {
+                e.printStackTrace();
+                throw e;
+            }
+        }
+
+        public static byte[] intToByteArray(int value) {
+            return new byte[] {
+                    (byte)(value >>> 24),
+                    (byte)(value >>> 16),
+                    (byte)(value >>> 8),
+                    (byte)value};
+        }
+    }
 }

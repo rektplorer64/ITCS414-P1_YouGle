@@ -14,7 +14,7 @@ retrieval for Boolean conjunctive queries.
 - **`Pair.java`** → A Helper Data Structure from Dan Klein
 - **`PostingList.java`** → A Data Model which contains Vocab/Word/Term ID and Posting (The place where the Vocab/Word/Term can be found like a Page/Document) ID.
 - **`Query.java`** → Part of Program that responsible for Reading/Retrieval of the Vocab
-- **`FileUtil.java`** → Utilities for various Parts of the Program
+- **`Index.FileUtil.java`** → Utilities for various Parts of the Program
 
 ###### Related Algorithms
 - Basic

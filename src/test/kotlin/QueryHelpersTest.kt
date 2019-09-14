@@ -21,14 +21,15 @@ internal class QueryHelpersTest {
 
     @Test
     fun processQuery() {
-        val queries = QueryHelpers.processQuery(query)
+        val queries = Query.QueryHelpers.processQuery(query)
         assertIterableEquals(listOf("hello", "there"), queries)
     }
 
     @Test
     fun booleanRetrieval() {
-        val query = QueryHelpers.booleanRetrieval(postingListA)
+        val query = Query.QueryHelpers.booleanRetrieval(postingListA)
         println(query)
         assertIterableEquals(listOf(1, 3, 5, 10), query)
+
     }
 }
