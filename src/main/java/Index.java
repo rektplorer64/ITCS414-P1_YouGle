@@ -2,39 +2,62 @@ import java.io.*;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
-public class Index {
+/**
+ * The class that responsible for Processing Document Data set by create a Binary index file
+ */
+public class Index{
 
-    // Term id -> (position in index file, doc frequency) dictionary
-    private static Map<Integer, Pair<Long, Integer>> postingDict
-            = new TreeMap<Integer, Pair<Long, Integer>>();
-    // Doc name -> doc id dictionary
-    private static Map<String, Integer> docDict
-            = new TreeMap<String, Integer>();
-    // Term -> term id dictionary
-    private static Map<String, Integer> termDict
-            = new TreeMap<String, Integer>();
-    // Block queue
-    private static LinkedList<File> blockQueue
-            = new LinkedList<File>();
+    /**
+     * Map of Term Id -> Pair of Byte Position and Document Frequency
+     */
+    private static Map<Integer, Pair<Long, Integer>> postingDict = new TreeMap<Integer, Pair<Long, Integer>>();
 
-    // Total file counter
+    /**
+     * Map of Document String (directory + file name) -> Document Id
+     */
+    private static Map<String, Integer> docDict = new TreeMap<String, Integer>();
+
+    /**
+     * Map of Term String -> Term Id
+     */
+    private static Map<String, Integer> termDict = new TreeMap<String, Integer>();
+
+    /**
+     * Block Queue for storing File to be processed
+     */
+    private static LinkedList<File> blockQueue = new LinkedList<File>();
+
+    /**
+     * Count of the total file
+     */
     private static int totalFileCount = 0;
-    // Document counter
+
+    /**
+     * Count of the Document Id
+     */
     private static int docIdCounter = 0;
-    // Term counter
+
+    /**
+     * Count of the Word Id
+     */
     private static int wordIdCounter = 0;
-    // Index
+
+    /**
+     * Indexer Instance
+     */
     private static BaseIndex index = null;
 
 
-    /*
-     * Write a posting list to the given file
-     * You should record the file position of this posting list
-     * so that you can read it back during retrieval
+    /**
+     * Write a posting list to the given file You should record the file position of this posting list so that you can
+     * read it back during retrieval
      *
-     * */
-    private static void writePosting(FileChannel fc, PostingList posting)
-            throws IOException {
+     * @param fc      FileChannel Instance of the file to be written
+     * @param posting PostingList to be written into the file
+     *
+     * @throws IOException
+     */
+    private static void writePosting(FileChannel fc, PostingList posting) throws IOException{
         /*
          * TODO: Your code here
          */
@@ -47,12 +70,13 @@ public class Index {
      * Pop next element if there is one, otherwise return null
      *
      * @param iter an iterator that contains integers
+     *
      * @return next element or null
      */
-    private static Integer popNextOrNull(Iterator<Integer> iter) {
-        if (iter.hasNext()) {
+    private static Integer popNextOrNull(Iterator<Integer> iter){
+        if (iter.hasNext()){
             return iter.next();
-        } else {
+        }else{
             return null;
         }
     }
@@ -67,21 +91,20 @@ public class Index {
      * @param outputDirname :relative path to the output directory to store index. You must not assume that this
      *                      directory exist. If it does, you must clear out the content before indexing.
      */
-    public static int runIndexer(String method, String dataDirname, String outputDirname) throws IOException {
+    public static int runIndexer(String method, String dataDirname, String outputDirname) throws IOException{
         /* Get index */
         String className = method + "Index";
-        try {
+        try{
             Class<?> indexClass = Class.forName(className);
             index = (BaseIndex) indexClass.newInstance();
-        } catch (Exception e) {
-            System.err
-                    .println("Index method must be \"Basic\", \"VB\", or \"Gamma\"");
+        }catch (Exception e){
+            System.err.println("Index method must be \"Basic\", \"VB\", or \"Gamma\"");
             throw new RuntimeException(e);
         }
 
         /* Get root directory of where the Data set is stored */
         File rootdir = new File(dataDirname);
-        if (!rootdir.exists() || !rootdir.isDirectory()) {
+        if (!rootdir.exists() || !rootdir.isDirectory()){
             System.err.println("Invalid data directory: " + dataDirname);
             return -1;
         }
@@ -89,7 +112,7 @@ public class Index {
 
         /* Get output directory*/
         File outdir = new File(outputDirname);
-        if (outdir.exists() && !outdir.isDirectory()) {     // If the given url exists and is not a folder -> Error
+        if (outdir.exists() && !outdir.isDirectory()){     // If the given url exists and is not a folder -> Error
             System.err.println("Invalid output directory: " + outputDirname);
             return -1;
         }
@@ -98,8 +121,8 @@ public class Index {
         FileUtil.purgeDirectory(outdir);
 
         // Recreate the Directory if it is not finish
-        if (!outdir.exists()) {
-            if (!outdir.mkdirs()) {
+        if (!outdir.exists()){
+            if (!outdir.mkdirs()){
                 System.err.println("Create output directory failure");
                 return -1;
             }
@@ -123,8 +146,8 @@ public class Index {
 
             // Lists all text file inside
             File[] filelist = blockDir.listFiles();
-
             Map<Integer, Set<Integer>> blockPostingLists = new TreeMap<>();          // Temporary Data Structure for storing PostingList before conversion
+
             // Map<Integer, Pair<Long, Integer>> blockPostingDict = new TreeMap<>();
 
             /* For each file */
@@ -140,9 +163,10 @@ public class Index {
                 BufferedReader reader = new BufferedReader(new FileReader(file));
                 String line;
 
-
-                while ((line = reader.readLine()) != null) {                            // Read each line of the Text File
-                    String[] tokens = line.trim().split("\\s+");                  // Splits the String By white spaces (So we can get the Array Of Word Strings aka Tokens) **
+                while ((line = reader.readLine()) != null){
+                    // Read each line of the Text File
+                    String[] tokens = line.trim().split(
+                            "\\s+");                  // Splits the String By white spaces (So we can get the Array Of Word Strings aka Tokens) **
                     for (String token : tokens) {
                         /*
                          * TODO: Your code here
@@ -153,31 +177,31 @@ public class Index {
                         // TODO: Related Data Containers: termDict, postingDict, postingList
                         int currentWordId;
                         String manipulatedToken = token.toLowerCase().trim();
-                        if (!termDict.containsKey(manipulatedToken)) {              // If the term dict does not contain the token
+                        if (!termDict.containsKey(
+                                manipulatedToken)){              // If the term dict does not contain the token
                             termDict.put(manipulatedToken, ++wordIdCounter);        // Put it into the termDict TreeMap
                             currentWordId = wordIdCounter;
-                        } else {
+                        }else{
                             currentWordId = termDict.get(manipulatedToken);
                         }
 
-                        if (!postingDict.containsKey(currentWordId)) {                                        // If PostingDict does not contain that termId
-                            postingDict.put(currentWordId, null);                       // Put it in, Mark byte position as -1L
+                        if (!postingDict.containsKey(currentWordId)){    // If PostingDict does not contain that termId
+                            postingDict.put(currentWordId, null);       // Put it in, Mark byte position as -1L
                         }
 
-                        if (!blockPostingLists.containsKey(currentWordId)) {
+                        if (!blockPostingLists.containsKey(currentWordId)){
                             blockPostingLists.put(currentWordId, new TreeSet<>());
                         }
-
-                        blockPostingLists.get(currentWordId).add(docId); // System.out.println("Added termId: " + termDict.get(token) + " == " + token + " (doc=" + docId + ")");
+                        blockPostingLists.get(currentWordId).add(docId);
+                        // System.out.println("Added termId: " + termDict.get(token) + " == " + token + " (doc=" + docId + ")");
                     }
                 }
                 reader.close();
             }
             // System.out.println("block " + block.getName() + ", postingList=" + blockPostingLists);
 
-
             /* Sort and output */
-            if (!blockFile.createNewFile()) {
+            if (!blockFile.createNewFile()){
                 System.err.println("Create new block failure.");
                 return -1;
             }
@@ -194,9 +218,9 @@ public class Index {
                 PostingList newPosting = new PostingList(key, new ArrayList<>(blockPostingLists.get(key)));
 
                 // Count up the frequency
-                if (postingDict.containsKey(newPosting.getTermId())) {
+                if (postingDict.containsKey(newPosting.getTermId())){
                     Pair<Long, Integer> pair = postingDict.get(newPosting.getTermId());
-                    if (pair == null) {
+                    if (pair == null){
                         postingDict.put(newPosting.getTermId(), new Pair<>(-1L, 0));
                         pair = postingDict.get(newPosting.getTermId());
                     }
@@ -214,15 +238,16 @@ public class Index {
         System.out.println("Total Files Indexed: " + totalFileCount);
 
         /* Merge blocks */
-        while (true) {
-            if (blockQueue.size() <= 1)
+        while (true){
+            if (blockQueue.size() <= 1){
                 break;
+            }
 
             File b1 = blockQueue.removeFirst();
             File b2 = blockQueue.removeFirst();
 
             File combfile = new File(outputDirname, b1.getName() + "+" + b2.getName());
-            if (!combfile.createNewFile()) {
+            if (!combfile.createNewFile()){
                 System.err.println("Create new block failure.");
                 return -1;
             }
@@ -239,37 +264,37 @@ public class Index {
              *
              */
 
-            long startTimeRead = System.currentTimeMillis();
+            // long startTimeRead = System.currentTimeMillis();
 
-            //
-            List<PostingList> postingListA = FileUtil.readAllPostingLists(bf1.getChannel(), index);
-            List<PostingList> postingListB = FileUtil.readAllPostingLists(bf2.getChannel(), index);
+            // List<PostingList> postingListA = FileUtil.readAllPostingLists(bf1.getChannel(), index);
+            // List<PostingList> postingListB = FileUtil.readAllPostingLists(bf2.getChannel(), index);
 
-            long endTimeRead = System.currentTimeMillis();
+            // long endTimeRead = System.currentTimeMillis();
 
-            System.out.println(combfile.getName() + "\n\tRead Time Used: " + ((endTimeRead - startTimeRead) / 1000.0) + " secs");
+            // System.out.println(combfile.getName() + "\n\tRead Time Used: " + ((endTimeRead - startTimeRead) / 1000.0) + " secs");
 
-            long startTimeProcess = System.currentTimeMillis();
+            // long startTimeProcess = System.currentTimeMillis();
 
-            List<PostingList> finalList = IndexHelpers.mergePostingList(postingListA, postingListB);
-            finalList.sort(Query.CollectionUtil.POSTING_LIST_COMPARATOR);
+            List<PostingList> finalList = IndexHelpers.mergePostingList(bf1.getChannel(), bf2.getChannel(), index);
+            finalList.sort(Query.CollectionUtil.COMPARATOR_POSTING_LIST_TERM_ID);
 
-            long endTimeProcess = System.currentTimeMillis();
+            // long endTimeProcess = System.currentTimeMillis();
 
-            System.out.println("\tMerge Time Used: " + ((endTimeProcess - startTimeProcess) / 1000.0) + " secs");
+            // System.out.println("\tMerge Time Used: " + ((endTimeProcess - startTimeProcess) / 1000.0) + " secs");
 
             // System.out.println("final: " + finalList);
 
             // TODO: Loops thru SortedList
-            long startTime2 = System.currentTimeMillis();
+            // long startTime2 = System.currentTimeMillis();
             for (PostingList posting : finalList) {
+                // System.out.println("Final " + posting.getTermId() + " " + posting.getList());
                 writePosting(mf.getChannel(), posting);
             }
-            long endTime2 = System.currentTimeMillis();
-            System.out.println("\tWrite Time Used: " + ((endTime2 - startTime2) / 1000.0) + " secs");
+            // long endTime2 = System.currentTimeMillis();
+            // System.out.println("\tWrite Time Used: " + ((endTime2 - startTime2) / 1000.0) + " secs");
 
             finalList = null;
-            System.gc();
+            // System.gc();
             bf1.close();
             bf2.close();
             mf.close();
@@ -282,46 +307,42 @@ public class Index {
         File indexFile = blockQueue.removeFirst();
         indexFile.renameTo(new File(outputDirname, "corpus.index"));
 
-        BufferedWriter termWriter = new BufferedWriter(new FileWriter(new File(
-                outputDirname, "term.dict")));
+        BufferedWriter termWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "term.dict")));
         for (String term : termDict.keySet()) {
             termWriter.write(term + "\t" + termDict.get(term) + "\n");
         }
         termWriter.close();
 
-        BufferedWriter docWriter = new BufferedWriter(new FileWriter(new File(
-                outputDirname, "doc.dict")));
+        BufferedWriter docWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "doc.dict")));
         for (String doc : docDict.keySet()) {
             docWriter.write(doc + "\t" + docDict.get(doc) + "\n");
         }
         docWriter.close();
 
-        BufferedWriter postWriter = new BufferedWriter(new FileWriter(new File(
-                outputDirname, "posting.dict")));
+        BufferedWriter postWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "posting.dict")));
         for (Integer termId : postingDict.keySet()) {
-            postWriter.write(termId + "\t" + postingDict.get(termId).getFirst()
-                    + "\t" + postingDict.get(termId).getSecond() + "\n");
+            postWriter.write(
+                    termId + "\t" + postingDict.get(termId).getFirst() + "\t" + postingDict.get(termId).getSecond() +
+                    "\n");
         }
         postWriter.close();
 
         return totalFileCount;
     }
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException{
         /* Parse command line */
-        if (args.length != 3) {
-            System.err
-                    .println("Usage: java Index [Basic|VB|Gamma] data_dir output_dir");
+        if (args.length != 3){
+            System.err.println("Usage: java Index [Basic|VB|Gamma] data_dir output_dir");
             return;
         }
 
         /* Get index */
         String className = "";
-        try {
+        try{
             className = args[0];
-        } catch (Exception e) {
-            System.err
-                    .println("Index method must be \"Basic\", \"VB\", or \"Gamma\"");
+        }catch (Exception e){
+            System.err.println("Index method must be \"Basic\", \"VB\", or \"Gamma\"");
             throw new RuntimeException(e);
         }
 
@@ -333,72 +354,91 @@ public class Index {
         runIndexer(className, root, output);
     }
 
-    public static class IndexHelpers {
+    public static class IndexHelpers{
 
-        public static ArrayList<PostingList> mergePostingList(FileChannel fc1, FileChannel fc2){
+        public static ArrayList<PostingList> mergePostingList(FileChannel fc1, FileChannel fc2, BaseIndex index)
+                throws IOException{
 
-            long i = 0;
-            long sizeA = 0;
-            try {
-                i = fc1.position();
-                sizeA = fc1.size();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            long i = 0, j = 0;
+            long sizeA = fc1.size(), sizeB = fc2.size();
 
-            long j = 0;
-            long sizeB = 0;
-            try {
-                j = fc2.position();
-                sizeB = fc2.size();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            Comparator<PostingList> c = Query.CollectionUtil.COMPARATOR_POSTING_LIST_TERM_ID;
 
-            Comparator<PostingList> c = Query.CollectionUtil.POSTING_LIST_COMPARATOR;
+            long prev_i, prev_j;
+
+            // System.out.println("\nMerging PostingLists");
 
             ArrayList<PostingList> mergedResult = new ArrayList<>();
             while (i < sizeA && j < sizeB){
+                prev_i = fc1.position();
                 PostingList p1 = index.readPosting(fc1);
+                i = prev_i;
+
+                prev_j = fc2.position();
                 PostingList p2 = index.readPosting(fc2);
+                j = prev_j;
+
                 int comparison = c.compare(p1, p2);
                 if (comparison < 0){
                     mergedResult.add(p1);
+
+                    i = fc1.position();
+                    fc1.position(i);
+
+                    fc2.position(j);
+
+                    // j = prev_j;
+
                 }else if (comparison > 0){
                     mergedResult.add(p2);
+
+                    // i = prev_i;
+                    fc1.position(i);
+
+                    j = fc2.position();
+                    fc2.position(j);
                 }else{
                     ArrayList<PostingList> merged = new ArrayList<PostingList>();
                     merged.add(p1);
                     merged.add(p2);
                     mergedResult.addAll(combiningDuplicatePostingList(merged));
-                    i++;
+                    i = fc1.position();
+                    j = fc2.position();
                 }
+                // System.out.println("i=" + i + "/" + sizeA + " j=" + j + "/" + sizeB + " --> " + (i < sizeA) + " and " + (j < sizeB) + " = " + (i < sizeA && j < sizeB));
             }
 
+            if (i != sizeA){
+                mergedResult.addAll(FileUtil.readAllPostingLists(fc1, index));
+            }
+
+            if (j != sizeB){
+                mergedResult.addAll(FileUtil.readAllPostingLists(fc2, index));
+            }
+
+            // System.out.println("Merged Postings: " + Query.CollectionUtil.postingListArrayToString(mergedResult));
             return mergedResult;
         }
 
-        public static List<PostingList> mergePostingList(List<PostingList> block1, List<PostingList> block2) {
+        public static List<PostingList> mergePostingList(List<PostingList> block1, List<PostingList> block2){
             // System.out.println("Started Merging → Block 1 = " + block1.size() + " | Block 2 = " + block2.size());
             block1.addAll(block2);
             return combiningDuplicatePostingList(block1);
         }
 
-        public static List<PostingList> combiningDuplicatePostingList(List<PostingList> lists) {
+        public static List<PostingList> combiningDuplicatePostingList(List<PostingList> lists){
             HashMap<Integer, TreeSet<Integer>> termIdListPair = new HashMap<>();
 
             // Construct a HashMap that contains every entry
             // Combines duplications
             for (PostingList p : lists) {
-                if (!termIdListPair.containsKey(p.getTermId())) {
+                if (!termIdListPair.containsKey(p.getTermId())){
                     termIdListPair.put(p.getTermId(), new TreeSet<>());
                 }
                 termIdListPair.get(p.getTermId()).addAll(p.getList());
             }
 
             List<PostingList> result = new ArrayList<>();
-
-
             for (Map.Entry<Integer, TreeSet<Integer>> entry : termIdListPair.entrySet()) {
                 result.add(new PostingList(entry.getKey(), new ArrayList<>(entry.getValue())));
             }
@@ -407,34 +447,35 @@ public class Index {
 
     }
 
-    public static class FileUtil {
-        public static void purgeDirectory(File dir) {
-            for (File file: dir.listFiles()) {
-                if (file.isDirectory())
+    /**
+     *
+     */
+    public static class FileUtil{
+        public static void purgeDirectory(File dir){
+            for (File file : dir.listFiles()) {
+                if (file.isDirectory()){
                     purgeDirectory(file);
+                }
                 file.delete();
             }
         }
 
-        public static ArrayList<PostingList> readAllPostingLists(FileChannel fileChannel, BaseIndex index) throws IOException {
+        public static ArrayList<PostingList> readAllPostingLists(FileChannel fileChannel, BaseIndex index)
+                throws IOException{
             ArrayList<PostingList> postingLists = new ArrayList<>();
-            try {
-                while (fileChannel.position() <= fileChannel.size() - 1) {
+            try{
+                while (fileChannel.position() <= fileChannel.size() - 1){
                     postingLists.add(index.readPosting(fileChannel));
                 }
                 return postingLists;
-            } catch (IOException e) {
+            }catch (IOException e){
                 e.printStackTrace();
                 throw e;
             }
         }
 
-        public static byte[] intToByteArray(int value) {
-            return new byte[] {
-                    (byte)(value >>> 24),
-                    (byte)(value >>> 16),
-                    (byte)(value >>> 8),
-                    (byte)value};
+        public static byte[] intToByteArray(int value){
+            return new byte[]{(byte) (value >>> 24), (byte) (value >>> 16), (byte) (value >>> 8), (byte) value};
         }
     }
 }

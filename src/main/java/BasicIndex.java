@@ -9,6 +9,7 @@ import java.util.Arrays;
 public class BasicIndex implements BaseIndex {
 
     private static final int POSTING_LIST_OFFSET = 2;
+    private static ByteBuffer intBuffer = ByteBuffer.allocate(Integer.BYTES);
 
     @Override
     public PostingList readPosting(FileChannel fc) {
@@ -16,27 +17,28 @@ public class BasicIndex implements BaseIndex {
          * TODO: Your code here
          *       Read and return the postings list from the given file.
          */
-        ByteBuffer intBuffer = ByteBuffer.allocate(Integer.BYTES);
         intBuffer.clear();
         ArrayList<Integer> rawReadValues = new ArrayList<>();
 
+        // System.out.println();
         // TODO: READ HEADER ONLY
         for (int i = 0; i < POSTING_LIST_OFFSET; i++) {
             try {
+                // System.out.println(i + ": " + fc.position());
                 fc.read(intBuffer);
                 intBuffer.flip();
                 rawReadValues.add(intBuffer.getInt());
             } catch (IOException e) {
-                // e.printStackTrace();
+                e.printStackTrace();
             } catch (BufferUnderflowException e) {
-                // e.printStackTrace();
+                e.printStackTrace();
                 break;
             }
             intBuffer.clear();
         }
+        intBuffer.flip();
 
-
-        // System.out.println("\nHeader="+ rawReadValues);
+        // System.out.println("Header="+ rawReadValues);
         // TODO: FIND APPROPRIATE BUFFER SIZE
         int bufferSizeByte = 1, tempDocFreq = rawReadValues.get(1);
         // System.out.println("BufferSize=" + bufferSizeByte + ", tempDocFreq=" + tempDocFreq);
@@ -54,6 +56,7 @@ public class BasicIndex implements BaseIndex {
         } else {
             bufferSizeByte = 1;
         }
+
         // System.out.print("maxPrime=" + bufferSizeByte);
         bufferSizeByte *= Integer.BYTES;
 
@@ -106,9 +109,9 @@ public class BasicIndex implements BaseIndex {
         /*
          * TODO: Your code here
          *       Write the given postings list to the given file.
-         *
-         *
          */
+
+        // termId, docFreq, [docId...]
 
         int[] dataToBeWritten = new int[p.getList().size() + POSTING_LIST_OFFSET];
         dataToBeWritten[0] = p.getTermId();
@@ -120,8 +123,8 @@ public class BasicIndex implements BaseIndex {
         }
         p = null;
 
-        // Converts INT[] to BYTE[]
-        byte[] bytePrimitiveArr = new byte[dataToBeWritten.length * 4];
+        // Converts int[] to byte[]
+        byte[] bytePrimitiveArr = new byte[dataToBeWritten.length * Integer.BYTES];
         int byteCounter = 0;
 
         for (int i = 0; i < dataToBeWritten.length; i++) {
@@ -132,9 +135,9 @@ public class BasicIndex implements BaseIndex {
         }
 
         // Initialize the Buffer
-        ByteBuffer intBuffer = ByteBuffer.allocate((dataCounter + 1) * 4);
+        ByteBuffer intBuffer = ByteBuffer.allocate((dataCounter + 1) * Integer.BYTES);
 
-        // Put the BYTE[] to the Buffer
+        // Put the byte[] to the Buffer
         intBuffer.put(bytePrimitiveArr);
 
         // Sets the position to 0 before writing

@@ -87,8 +87,6 @@ public class P1Tester {
 
             e.printStackTrace();
         }
-
-
     }
 
     public static void testQuery(String indexMode, String indexDirname, String[] queries, String outputDir) {
@@ -169,13 +167,13 @@ public class P1Tester {
         //Test the "small" dataset
         // testIndex("Basic", "./datasets/small", "./index/small");
         // testQuery("Basic", "./index/small", queriesSmall, "./output/small");
-        // //
+
         //Test the "large" dataset
-        // testIndex("Basic", "./datasets/large", "./index/large");
-        // testQuery("Basic", "./index/large", queriesLarge, "./output/large");
+        testIndex("Basic", "./datasets/large", "./index/large");
+        testQuery("Basic", "./index/large", queriesLarge, "./output/large");
 
         //Test the "citeseer" dataset
-        testIndex("Basic", "./datasets/citeseer", "./index/citeseer");
-        testQuery("Basic", "./index/citeseer", queriesCiteseer, "./output/citeseer");
+        // testIndex("Basic", "./datasets/citeseer", "./index/citeseer");
+        // testQuery("Basic", "./index/citeseer", queriesCiteseer, "./output/citeseer");
     }
 }
