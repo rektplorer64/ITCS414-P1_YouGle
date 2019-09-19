@@ -3,7 +3,7 @@ import org.junit.jupiter.api.Test
 
 import org.junit.jupiter.api.Assertions.*
 
-internal class QueryHelpersTest {
+internal class QueryUtilTest {
 
     private val query: String = "hello there"
 
@@ -21,13 +21,13 @@ internal class QueryHelpersTest {
 
     @Test
     fun processQuery() {
-        val queries = Query.QueryHelpers.processQuery(query)
+        val queries = Query.QueryUtil.processQuery(query)
         assertIterableEquals(listOf("hello", "there"), queries)
     }
 
     @Test
     fun booleanRetrieval() {
-        val query = Query.QueryHelpers.booleanRetrieval(postingListA)
+        val query = Query.QueryUtil.booleanRetrieval(postingListA)
         println(query)
         assertIterableEquals(listOf(1, 3, 5, 10), query)
 

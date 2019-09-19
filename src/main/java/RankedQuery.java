@@ -101,7 +101,7 @@ public class RankedQuery{
 
         // termId -> Frequency
         HashMap<Integer, Integer> queryTermFreq = new HashMap<>();
-        TreeSet<String> uniqueWord = new TreeSet<>(Query.QueryHelpers.processQuery(query));
+        TreeSet<String> uniqueWord = new TreeSet<>(Query.QueryUtil.processQuery(query));
         for (String word : uniqueWord) {
             Integer termDictId = termDict.get(word);
             if (termDictId != null){

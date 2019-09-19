@@ -1,4 +1,5 @@
 import Query.CollectionUtil.*
+import Query.QueryUtil.booleanRetrieval
 import org.junit.jupiter.api.Test
 
 import org.junit.jupiter.api.Assertions.*
@@ -51,5 +52,17 @@ internal class CollectionUtilTest {
     fun `Basic Symmetric Differentiation Test`(){
         val symmetric = symmetricDifferentiate<Int>(postingListA[0].list, postingListA[1].list, COMPARATOR_INTEGER)
         assertIterableEquals(listOf(7, 9, 11, 10, 10, 20 ,30), symmetric)
+    }
+
+    @Test
+    fun `Boolean Retrieval on two PostingList`(){
+        val booleanIntersect = booleanRetrieval(postingListA.subList(0, 2))
+        assertIterableEquals(listOf(1, 3, 5), booleanIntersect)
+    }
+
+    @Test
+    fun `Boolean Retrieval on All PostingList`(){
+        val booleanIntersect = booleanRetrieval(postingListA)
+        assertIterableEquals(listOf(1, 3, 5), booleanIntersect)
     }
 }

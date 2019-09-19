@@ -158,11 +158,11 @@ public class Query{
         // System.out.println("Term Dict = " + termDict);
 
         // Manipulate the Query
-        ArrayList<String> queries = QueryHelpers.processQuery(query);
+        ArrayList<String> queries = QueryUtil.processQuery(query);
         // System.out.println("Queries = " + queries);
 
         // Get TermId by query string
-        ArrayList<Integer> termIds = QueryHelpers.getTermIdByQuery(termDict, queries);
+        ArrayList<Integer> termIds = QueryUtil.getTermIdByQuery(termDict, queries);
         // System.out.println("Term Id = " + termIds);
 
         // Fetch Byte Position inside the index file of each Term (termId: Int -> PostingList)
@@ -184,7 +184,7 @@ public class Query{
         ArrayList<PostingList> postingLists = new ArrayList<>(termIdPostingListMap.values());
         postingLists.sort(CollectionUtil.COMPARATOR_POSTING_LIST_DOC_FREQ);
 
-        return QueryHelpers.booleanRetrieval(postingLists);
+        return QueryUtil.booleanRetrieval(postingLists);
     }
 
     /**
@@ -284,7 +284,7 @@ public class Query{
     /**
      * A helper static class that contains Various Helper Static Methods
      */
-    public static class QueryHelpers{
+    public static class QueryUtil{
 
         /**
          * Receives a query, then process it and return it as an ArrayList of Strings
@@ -350,24 +350,29 @@ public class Query{
          */
         public static List<Integer> booleanRetrieval(List<PostingList> postingLists){
 
-            if (postingLists.isEmpty()){
-                return new ArrayList<>();
-            }else if (postingLists.size() == 1){
-                return new ArrayList<>(postingLists.get(0).getList());
+            if (postingLists.isEmpty()){                                    // If there is no PostingList
+                return new ArrayList<>();                                   // There is no result to be returned
+            }else if (postingLists.size() == 1){                            // If there is only one
+                return new ArrayList<>(postingLists.get(0).getList());      // Return the list as the result
             }
 
+            // Get Posting of both initial first 2 arrays
             ArrayList<Integer> firstElem = new ArrayList<>(postingLists.get(0).getList());
             ArrayList<Integer> secondElem = new ArrayList<>(postingLists.get(1).getList());
+
+            // Calculate the intersection of the first two Postings
             List<Integer> accumulateIntersectedDocId = CollectionUtil.intersect(firstElem, secondElem,
                                                                                 CollectionUtil.COMPARATOR_INTEGER);
 
+            // Loops until it reaches the size of PostingLists
             for (int i = 1; i < postingLists.size(); i++) {
                 PostingList nextPosting = null;
                 try{
-                    nextPosting = postingLists.get(i + 1);
-                }catch (IndexOutOfBoundsException e){
-                    break;
+                    nextPosting = postingLists.get(i + 1);      // Get the next PostingList to be intersected
+                }catch (IndexOutOfBoundsException e){           // If we reached the end (i == postingList.size() - 1), postingList.get(i + 1) will throw OutOfBound Exception.
+                    break;                                      // We break the loop.
                 }
+                // Accumulatively apply the intersection; When doing binary operation, we have to do it Accumulatively.
                 accumulateIntersectedDocId = CollectionUtil.intersect(accumulateIntersectedDocId, nextPosting.getList(),
                                                                       CollectionUtil.COMPARATOR_INTEGER);
             }
