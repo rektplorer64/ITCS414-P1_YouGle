@@ -158,7 +158,7 @@ public class Query{
         // System.out.println("Term Dict = " + termDict);
 
         // Manipulate the Query
-        ArrayList<String> queries = QueryUtil.processQuery(query);
+        ArrayList<String> queries = QueryUtil.tokenizeQuery(query);
         // System.out.println("Queries = " + queries);
 
         // Get TermId by query string
@@ -180,7 +180,6 @@ public class Query{
 
         // System.out.println(intersectedDocId);
         // System.out.println();
-
         ArrayList<PostingList> postingLists = new ArrayList<>(termIdPostingListMap.values());
         postingLists.sort(CollectionUtil.COMPARATOR_POSTING_LIST_DOC_FREQ);
 
@@ -280,341 +279,340 @@ public class Query{
             e.printStackTrace();
         }
     }
+}
+
+/**
+ * A helper static class that contains Various Helper Static Methods
+ */
+class QueryUtil{
 
     /**
-     * A helper static class that contains Various Helper Static Methods
+     * Receives a query, then process it and return it as an ArrayList of Strings
+     *
+     * @param inputQuery string consists of english terms delimited by white spaces
+     *
+     * @return ArrayList of processed Strings
      */
-    public static class QueryUtil{
-
-        /**
-         * Receives a query, then process it and return it as an ArrayList of Strings
-         *
-         * @param inputQuery string consists of english terms delimited by white spaces
-         *
-         * @return ArrayList of processed Strings
-         */
-        public static ArrayList<String> processQuery(String inputQuery){
-            String[] tokens = inputQuery.trim().split("\\s+");
-            return new ArrayList<>(Arrays.asList(tokens));
-        }
-
-        /**
-         * Fetch terms based on given ArrayList of query strings
-         *
-         * @param termDict the Map of term string -> term identification number
-         * @param queries  ArrayList of query strings
-         *
-         * @return ArrayList of term identification numbers
-         */
-        public static ArrayList<Integer> getTermIdByQuery(Map<String, Integer> termDict, ArrayList<String> queries){
-            ArrayList<Integer> termIds = new ArrayList<>();
-            for (String query : queries) {
-                if (termDict.get(query) != null){
-                    termIds.add(termDict.get(query));
-                }
-            }
-            return termIds;
-        }
-
-        /**
-         * Reads the the given binary index file at the given byte position and construct a new PostingList Instance
-         *
-         * @param index        instance of indexing helper
-         * @param raf          a reference of the binary index file
-         * @param bytePosition a long which represents the byte position to be read
-         *
-         * @return a PostingList read from the binary file
-         *
-         * @throws IOException
-         */
-        public static PostingList getPostingListFromFile(BaseIndex index, RandomAccessFile raf, Long bytePosition)
-                throws IOException{
-            // If the given position is non existence
-            if (bytePosition == null){
-                return null;
-            }
-
-            // Seeks to the given byte position
-            raf.getChannel().position(bytePosition);
-
-            // Reads from the File and gives out new PostingList
-            return index.readPosting(raf.getChannel());
-        }
-
-        /**
-         * Finds the Intersection of an Array of Postings regardless of termId
-         *
-         * @param postingLists an Array contains Postings with various termId
-         *
-         * @return a list of document that intersects or presents in all given postingLists
-         */
-        public static List<Integer> booleanRetrieval(List<PostingList> postingLists){
-
-            if (postingLists.isEmpty()){                                    // If there is no PostingList
-                return new ArrayList<>();                                   // There is no result to be returned
-            }else if (postingLists.size() == 1){                            // If there is only one
-                return new ArrayList<>(postingLists.get(0).getList());      // Return the list as the result
-            }
-
-            // Get Posting of both initial first 2 arrays
-            ArrayList<Integer> firstElem = new ArrayList<>(postingLists.get(0).getList());
-            ArrayList<Integer> secondElem = new ArrayList<>(postingLists.get(1).getList());
-
-            // Calculate the intersection of the first two Postings
-            List<Integer> accumulateIntersectedDocId = CollectionUtil.intersect(firstElem, secondElem,
-                                                                                CollectionUtil.COMPARATOR_INTEGER);
-
-            // Loops until it reaches the size of PostingLists
-            for (int i = 1; i < postingLists.size(); i++) {
-                PostingList nextPosting = null;
-                try{
-                    nextPosting = postingLists.get(i + 1);      // Get the next PostingList to be intersected
-                }catch (IndexOutOfBoundsException e){           // If we reached the end (i == postingList.size() - 1), postingList.get(i + 1) will throw OutOfBound Exception.
-                    break;                                      // We break the loop.
-                }
-                // Accumulatively apply the intersection; When doing binary operation, we have to do it Accumulatively.
-                accumulateIntersectedDocId = CollectionUtil.intersect(accumulateIntersectedDocId, nextPosting.getList(),
-                                                                      CollectionUtil.COMPARATOR_INTEGER);
-            }
-            return accumulateIntersectedDocId;
-        }
-
+    public static ArrayList<String> tokenizeQuery(String inputQuery){
+        String[] tokens = inputQuery.trim().split("\\s+");
+        return new ArrayList<>(Arrays.asList(tokens));
     }
 
     /**
-     * CollectionUtil consists of static helper methods for Manipulating certain Data Structures
+     * Fetch terms based on given ArrayList of query strings
+     *
+     * @param termDict the Map of term string -> term identification number
+     * @param queries  ArrayList of query strings
+     *
+     * @return ArrayList of term identification numbers
      */
-    public static class CollectionUtil{
-
-        /**
-         * PostingList Comparator which compares them by their Term Identification numbers
-         */
-        public static final Comparator<PostingList> COMPARATOR_POSTING_LIST_TERM_ID = new Comparator<PostingList>(){
-            @Override
-            public int compare(PostingList o1, PostingList o2){
-                return o1.getTermId() - o2.getTermId();
+    public static ArrayList<Integer> getTermIdByQuery(Map<String, Integer> termDict, ArrayList<String> queries){
+        ArrayList<Integer> termIds = new ArrayList<>();
+        for (String query : queries) {
+            if (termDict.get(query) != null){
+                termIds.add(termDict.get(query));
             }
-        };
+        }
+        return termIds;
+    }
 
-        /**
-         * PostingList Comparator which compares them by their Posting Length
-         */
-        public static final Comparator<PostingList> COMPARATOR_POSTING_LIST_DOC_FREQ = new Comparator<PostingList>(){
-            @Override
-            public int compare(PostingList o1, PostingList o2){
-                return o1.getList().size() - o2.getList().size();
+    /**
+     * Reads the the given binary index file at the given byte position and construct a new PostingList Instance
+     *
+     * @param index        instance of indexing helper
+     * @param raf          a reference of the binary index file
+     * @param bytePosition a long which represents the byte position to be read
+     *
+     * @return a PostingList read from the binary file
+     *
+     * @throws IOException
+     */
+    public static PostingList getPostingListFromFile(BaseIndex index, RandomAccessFile raf, Long bytePosition)
+            throws IOException{
+        // If the given position is non existence
+        if (bytePosition == null){
+            return null;
+        }
+
+        // Seeks to the given byte position
+        raf.getChannel().position(bytePosition);
+
+        // Reads from the File and gives out new PostingList
+        return index.readPosting(raf.getChannel());
+    }
+
+    /**
+     * Finds the Intersection of an Array of Postings regardless of termId
+     *
+     * @param postingLists an Array contains Postings with various termId
+     *
+     * @return a list of document that intersects or presents in all given postingLists
+     */
+    public static List<Integer> booleanRetrieval(List<PostingList> postingLists){
+
+        if (postingLists.isEmpty()){                                    // If there is no PostingList
+            return new ArrayList<>();                                   // There is no result to be returned
+        }else if (postingLists.size() == 1){                            // If there is only one
+            return new ArrayList<>(postingLists.get(0).getList());      // Return the list as the result
+        }
+
+        // Get Posting of both initial first 2 arrays
+        ArrayList<Integer> firstElem = new ArrayList<>(postingLists.get(0).getList());
+        ArrayList<Integer> secondElem = new ArrayList<>(postingLists.get(1).getList());
+
+        // Calculate the intersection of the first two Postings
+        List<Integer> accumulateIntersectedDocId = CollectionUtil.intersect(firstElem, secondElem,
+                                                                                  CollectionUtil.COMPARATOR_INTEGER);
+
+        // Loops until it reaches the size of PostingLists
+        for (int i = 1; i < postingLists.size(); i++) {
+            PostingList nextPosting = null;
+            try{
+                nextPosting = postingLists.get(i + 1);      // Get the next PostingList to be intersected
+            }catch (IndexOutOfBoundsException e){           // If we reached the end (i == postingList.size() - 1), postingList.get(i + 1) will throw OutOfBound Exception.
+                break;                                      // We break the loop.
             }
-        };
+            // Accumulatively apply the intersection; When doing binary operation, we have to do it Accumulatively.
+            accumulateIntersectedDocId = CollectionUtil.intersect(accumulateIntersectedDocId, nextPosting.getList(),
+                                                                        CollectionUtil.COMPARATOR_INTEGER);
+        }
+        return accumulateIntersectedDocId;
+    }
 
-        /**
-         * Integer Comparator
-         */
-        public static final Comparator<Integer> COMPARATOR_INTEGER = Comparator.comparingInt(o -> o);
+}
 
-        /**
-         * Calculates an intersection between two given Lists with duplications allowed.
-         *
-         * @param listA a List containing @T elements
-         * @param listB a List containing @T elements
-         * @param c     @T Comparator
-         * @param <T>   Type of the elements inside the list
-         *
-         * @return Intersection with duplications
-         */
-        public static <T> List<T> intersect(List<T> listA, List<T> listB, Comparator<T> c){
-            ArrayList<T> intersected = new ArrayList<>();
+/**
+ * CollectionUtil consists of static helper methods for Manipulating certain Data Structures
+ */
+class CollectionUtil{
 
-            // Initializes the pointer indexes
-            int i = 0, j = 0;
+    /**
+     * PostingList Comparator which compares them by their Term Identification numbers
+     */
+    public static final Comparator<PostingList> COMPARATOR_POSTING_LIST_TERM_ID = new Comparator<PostingList>(){
+        @Override
+        public int compare(PostingList o1, PostingList o2){
+            return o1.getTermId() - o2.getTermId();
+        }
+    };
 
-            // Get the size of both lists
-            int sizeA = listA.size(), sizeB = listB.size();
+    /**
+     * PostingList Comparator which compares them by their Posting Length
+     */
+    public static final Comparator<PostingList> COMPARATOR_POSTING_LIST_DOC_FREQ = new Comparator<PostingList>(){
+        @Override
+        public int compare(PostingList o1, PostingList o2){
+            return o1.getList().size() - o2.getList().size();
+        }
+    };
 
-            // While both pointers are still lower than sizes
-            while (i < sizeA && j < sizeB){
-                // Compares both Elements against each other
-                int comparison = c.compare(listA.get(i), listB.get(j));
-                if (comparison < 0){                    // If the First Element is lesser
-                    // Move up the pointer of the First Array by one position
-                    i++;
-                }else if (comparison > 0){              // If the First Element is greater
-                    // Move up the pointer of the Second Array by one position
-                    j++;
-                }else{
-                    // Move up the pointer of both arrays by one position
-                    // Add the element into the Intersection Array
-                    intersected.add(listB.get(j++));
-                    i++;
+    /**
+     * Integer Comparator
+     */
+    public static final Comparator<Integer> COMPARATOR_INTEGER = Comparator.comparingInt(o -> o);
+
+    /**
+     * Calculates an intersection between two given Lists with duplications allowed.
+     *
+     * @param listA a List containing @T elements
+     * @param listB a List containing @T elements
+     * @param c     @T Comparator
+     * @param <T>   Type of the elements inside the list
+     *
+     * @return Intersection with duplications
+     */
+    public static <T> List<T> intersect(List<T> listA, List<T> listB, Comparator<T> c){
+        ArrayList<T> intersected = new ArrayList<>();
+
+        // Initializes the pointer indexes
+        int i = 0, j = 0;
+
+        // Get the size of both lists
+        int sizeA = listA.size(), sizeB = listB.size();
+
+        // While both pointers are still lower than sizes
+        while (i < sizeA && j < sizeB){
+            // Compares both Elements against each other
+            int comparison = c.compare(listA.get(i), listB.get(j));
+            if (comparison < 0){                    // If the First Element is lesser
+                // Move up the pointer of the First Array by one position
+                i++;
+            }else if (comparison > 0){              // If the First Element is greater
+                // Move up the pointer of the Second Array by one position
+                j++;
+            }else{
+                // Move up the pointer of both arrays by one position
+                // Add the element into the Intersection Array
+                intersected.add(listB.get(j++));
+                i++;
+            }
+        }
+
+        // Sorts the Result by using type comparator
+        intersected.sort(c);
+        return intersected;
+
+        // sortedListA.retainAll(sortedListB);
+        // return sortedListA;
+    }
+
+    /**
+     * Finds Symmetrical Difference between two given Lists with duplication allowed
+     *
+     * @param listA a List containing @T elements
+     * @param listB a List containing @T elements
+     * @param c     @T Comparator
+     * @param <T>   Type of the elements inside the list
+     *
+     * @return List of Symmetrical Difference with duplications
+     */
+    public static <T> List<T> symmetricDifferentiate(List<T> listA, List<T> listB, Comparator<T> c){
+
+        // Calculate the intersection
+        List<T> intersection = intersect(listA, listB, c);
+
+        // Get the Union between both Lists
+        List<T> union = new ArrayList<>(listA);
+        union.addAll(listB);
+
+        // Remove the intersection
+        union.removeAll(intersection);
+        return union;   // Return the rest
+    }
+
+    /**
+     * Finds both Intersection and Symmetrical Difference between two given Lists with duplication allowed
+     *
+     * @param listA a List containing @T elements
+     * @param listB a List containing @T elements
+     * @param <T>   Type of the elements inside the list
+     *
+     * @return Result List with duplicate elements
+     */
+    public static <T> Pair<AutoSortList<T>, AutoSortList<T>> intersectAndSymmetricDifferentiate(AutoSortList<T> listA, AutoSortList<T> listB){
+
+        // Initialize array to store the intersection
+        ArrayList<T> intersected = new ArrayList<>();
+
+        // Initialize array to store the symmetrical differences
+        ArrayList<T> symmetricDiff = new ArrayList<>();
+
+        int i = 0, j = 0;
+        while (i < listA.size() && j < listB.size()){
+            int comparison = listA.getComparator().compare(listA.get(i), listB.get(j));
+            if (comparison > 0){
+                symmetricDiff.add(listA.get(i));
+                i++;
+            }else if (comparison < 0){
+                symmetricDiff.add(listB.get(j));
+                j++;
+            }else{
+                intersected.add(listB.get(j++));
+                i++;
+            }
+        }
+
+        return new Pair<>(new AutoSortList<T>(intersected, listA.getComparator()),
+                          new AutoSortList<T>(symmetricDiff, listA.getComparator()));
+    }
+
+    /**
+     * Builds a string represents the content of a List of PostingList
+     *
+     * @param postingLists PostingList to be fetched content from
+     *
+     * @return String of the PostingList List
+     */
+    public static String postingListArrayToString(List<PostingList> postingLists){
+        StringBuilder stringBuilder = new StringBuilder("[");
+        for (PostingList p : postingLists) {
+            stringBuilder.append(p.getTermId()).append("->{");
+            for (int i = 0; i < p.getList().size(); i++) {
+                stringBuilder.append(p.getList().get(i));
+                if (i < p.getList().size() - 1){
+                    stringBuilder.append(", ");
                 }
             }
+            stringBuilder.append("}, ");
+        }
+        stringBuilder.append("]");
+        return stringBuilder.toString();
+    }
 
-            // Sorts the Result by using type comparator
-            intersected.sort(c);
-            return intersected;
+    /**
+     * A simple Extended Class that mimics the idea of SortedList
+     *
+     * @param <T>
+     */
+    public static class AutoSortList<T> extends ArrayList<T>{
 
-            // sortedListA.retainAll(sortedListB);
-            // return sortedListA;
+        private Comparator<T> comparator;
+
+        public AutoSortList(Comparator<T> comparator){
+            this(new ArrayList<>(), comparator);
         }
 
-        /**
-         * Finds Symmetrical Difference between two given Lists with duplication allowed
-         *
-         * @param listA a List containing @T elements
-         * @param listB a List containing @T elements
-         * @param c     @T Comparator
-         * @param <T>   Type of the elements inside the list
-         *
-         * @return List of Symmetrical Difference with duplications
-         */
-        public static <T> List<T> symmetricDifferentiate(List<T> listA, List<T> listB, Comparator<T> c){
+        public AutoSortList(@NotNull Collection<? extends T> c, Comparator<T> comparator){
+            super(c);
+            this.comparator = comparator;
 
-            // Calculate the intersection
-            List<T> intersection = intersect(listA, listB, c);
-
-            // Get the Union between both Lists
-            List<T> union = new ArrayList<>(listA);
-            union.addAll(listB);
-
-            // Remove the intersection
-            union.removeAll(intersection);
-            return union;   // Return the rest
+            // Sort the List
+            this.sort(comparator);
         }
 
-        /**
-         * Finds both Intersection and Symmetrical Difference between two given Lists with duplication allowed
-         *
-         * @param listA a List containing @T elements
-         * @param listB a List containing @T elements
-         * @param c     @T Comparator
-         * @param <T>   Type of the elements inside the list
-         *
-         * @return Result List with duplicate elements
-         */
-        public static <T> Pair<AutoSortList<T>, AutoSortList<T>> intersectAndSymmetricDifferentiate(AutoSortList<T> listA, AutoSortList<T> listB){
-
-            // Initialize array to store the intersection
-            ArrayList<T> intersected = new ArrayList<>();
-
-            // Initialize array to store the symmetrical differences
-            ArrayList<T> symmetricDiff = new ArrayList<>();
-
-            int i = 0, j = 0;
-            while (i < listA.size() && j < listB.size()){
-                int comparison = listA.getComparator().compare(listA.get(i), listB.get(j));
-                if (comparison > 0){
-                    symmetricDiff.add(listA.get(i));
-                    i++;
-                }else if (comparison < 0){
-                    symmetricDiff.add(listB.get(j));
-                    j++;
-                }else{
-                    intersected.add(listB.get(j++));
-                    i++;
-                }
-            }
-
-            return new Pair<>(new AutoSortList<T>(intersected, listA.getComparator()),
-                              new AutoSortList<T>(symmetricDiff, listA.getComparator()));
+        @Override
+        public boolean add(T t){
+            final boolean outcome = super.add(t);
+            this.sort(comparator);
+            return outcome;
         }
 
-        /**
-         * Builds a string represents the content of a List of PostingList
-         *
-         * @param postingLists PostingList to be fetched content from
-         *
-         * @return String of the PostingList List
-         */
-        public static String postingListArrayToString(List<PostingList> postingLists){
-            StringBuilder stringBuilder = new StringBuilder("[");
-            for (PostingList p : postingLists) {
-                stringBuilder.append(p.getTermId()).append("->{");
-                for (int i = 0; i < p.getList().size(); i++) {
-                    stringBuilder.append(p.getList().get(i));
-                    if (i < p.getList().size() - 1){
-                        stringBuilder.append(", ");
-                    }
-                }
-                stringBuilder.append("}, ");
-            }
-            stringBuilder.append("]");
-            return stringBuilder.toString();
+        @Override
+        public void add(int index, T element){
+            super.add(index, element);
+            this.sort(comparator);
         }
 
-        /**
-         * A simple Extended Class that mimics the idea of SortedList
-         *
-         * @param <T>
-         */
-        public static class AutoSortList<T> extends ArrayList<T>{
-
-            private Comparator<T> comparator;
-
-            public AutoSortList(Comparator<T> comparator){
-                this(new ArrayList<>(), comparator);
-            }
-
-            public AutoSortList(@NotNull Collection<? extends T> c, Comparator<T> comparator){
-                super(c);
-                this.comparator = comparator;
-
-                // Sort the List
-                this.sort(comparator);
-            }
-
-            @Override
-            public boolean add(T t){
-                final boolean outcome = super.add(t);
-                this.sort(comparator);
-                return outcome;
-            }
-
-            @Override
-            public void add(int index, T element){
-                super.add(index, element);
-                this.sort(comparator);
-            }
-
-            @Override
-            public boolean addAll(Collection<? extends T> c){
-                final boolean outcome = super.addAll(c);
-                this.sort(comparator);
-                return outcome;
-            }
-
-            @Override
-            public boolean addAll(int index, Collection<? extends T> c){
-                final boolean outcome = super.addAll(index, c);
-                this.sort(comparator);
-                return outcome;
-            }
-
-            @Override
-            public void replaceAll(UnaryOperator<T> operator){
-                super.replaceAll(operator);
-                this.sort(comparator);
-            }
-
-            @Override
-            public boolean removeIf(Predicate<? super T> filter){
-                final boolean outcome = super.removeIf(filter);
-                this.sort(comparator);
-                return outcome;
-            }
-
-            @Override
-            public AutoSortList<T> clone(){
-                return new AutoSortList<T>((Collection<? extends T>) super.clone(), comparator);
-            }
-
-            public Comparator<T> getComparator(){
-                return comparator;
-            }
-
-            public void setComparator(Comparator<T> comparator){
-                this.comparator = comparator;
-            }
-
+        @Override
+        public boolean addAll(Collection<? extends T> c){
+            final boolean outcome = super.addAll(c);
+            this.sort(comparator);
+            return outcome;
         }
+
+        @Override
+        public boolean addAll(int index, Collection<? extends T> c){
+            final boolean outcome = super.addAll(index, c);
+            this.sort(comparator);
+            return outcome;
+        }
+
+        @Override
+        public void replaceAll(UnaryOperator<T> operator){
+            super.replaceAll(operator);
+            this.sort(comparator);
+        }
+
+        @Override
+        public boolean removeIf(Predicate<? super T> filter){
+            final boolean outcome = super.removeIf(filter);
+            this.sort(comparator);
+            return outcome;
+        }
+
+        @Override
+        public AutoSortList<T> clone(){
+            return new AutoSortList<T>((Collection<? extends T>) super.clone(), comparator);
+        }
+
+        public Comparator<T> getComparator(){
+            return comparator;
+        }
+
+        public void setComparator(Comparator<T> comparator){
+            this.comparator = comparator;
+        }
+
     }
 }
 

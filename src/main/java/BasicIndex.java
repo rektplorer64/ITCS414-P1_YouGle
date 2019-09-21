@@ -69,16 +69,16 @@ public class BasicIndex implements BaseIndex {
         int docFrequency = rawReadValues.get(1);
 
         // Actual size of the buffer in Byte unit (Calculated by using max Prime Factor)
-        int bufferSizeByte = calculateBestBufferSize(docFrequency) * Integer.BYTES;
+        int bufferSizeByte = calculateBestBufferSize(docFrequency);
         // Allocate the buffer
-        ByteBuffer docIdBuffer = ByteBuffer.allocateDirect(bufferSizeByte);
+        ByteBuffer docIdBuffer = ByteBuffer.allocateDirect(bufferSizeByte * Integer.BYTES);
 
         /* Start File WRITING iteration */
 
         // Get the actual limit getting Document Frequency
         // Byte Capacity divide by BufferSize
         // to get how many time do we have to iterate.
-        int actualLimit = (docFrequency * Integer.BYTES) / docIdBuffer.capacity();
+        final int actualLimit = docFrequency / bufferSizeByte;
         for (int i = 0; i < actualLimit; i++) {
             try {
 
@@ -89,10 +89,12 @@ public class BasicIndex implements BaseIndex {
                 docIdBuffer.flip();
 
                 // Gradually takes N Integers with a loop; N = bufferSizeByte ÷ 4
-                int loopLimit = (docIdBuffer.capacity() - docIdBuffer.position()) / Integer.BYTES;
+
+                // ** Calculating Math inside a loop is most likely to create unnecessary overheads
+                // int loopLimit = (docIdBuffer.capacity() - docIdBuffer.position()) / Integer.BYTES;
 
                 // Buffer sometimes can takes multiple int (size > 4 Bytes), so we loop when getting int out of it.
-                for (int j = 0; j < loopLimit; j++) {
+                for (int j = 0; j < bufferSizeByte; j++) {
                     rawReadValues.add(docIdBuffer.getInt());
                 }
             } catch (IOException e) {
@@ -109,7 +111,8 @@ public class BasicIndex implements BaseIndex {
 
         // Add only document Ids which start from index = 2 of rawReadValues: ArrayList<Int>()
         int postingSize = rawReadValues.get(1);
-        for (int i = POSTING_LIST_OFFSET; i < postingSize + POSTING_LIST_OFFSET; i++) {
+        final int actualLimit2 = postingSize + POSTING_LIST_OFFSET;
+        for (int i = POSTING_LIST_OFFSET; i < actualLimit2; i++) {
             docIds.add(rawReadValues.get(i));
         }
 
@@ -172,9 +175,8 @@ public class BasicIndex implements BaseIndex {
         ByteBuffer intBuffer = ByteBuffer.allocateDirect(suitableBufferSize * Integer.BYTES);
 
         int elemCounter = 0;
-        for (int i = 0; i < dataToBeWritten.length / suitableBufferSize; i++){
-
-            // Put the byte[] to the Buffer
+        final int actualLimit = dataToBeWritten.length / suitableBufferSize;
+        for (int i = 0; i < actualLimit; i++){
             for (int j = 0; j < suitableBufferSize; j++) {
                 // System.out.println("Putted ["+ j+ "/" +(suitableBufferSize -1 )+ "] = " + dataToBeWritten[elemCounter]+ "\telem@" + elemCounter) ;
                 intBuffer.putInt(dataToBeWritten[elemCounter++]);

@@ -1,5 +1,5 @@
 import Query.CollectionUtil.*
-import Query.QueryUtil.booleanRetrieval
+import QueryUtil.booleanRetrieval
 import org.junit.jupiter.api.Test
 
 import org.junit.jupiter.api.Assertions.*

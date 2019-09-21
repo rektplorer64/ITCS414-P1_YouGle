@@ -21,13 +21,13 @@ internal class QueryUtilTest {
 
     @Test
     fun processQuery() {
-        val queries = Query.QueryUtil.processQuery(query)
+        val queries = QueryUtil.tokenizeQuery(query)
         assertIterableEquals(listOf("hello", "there"), queries)
     }
 
     @Test
     fun booleanRetrieval() {
-        val query = Query.QueryUtil.booleanRetrieval(postingListA)
+        val query = QueryUtil.booleanRetrieval(postingListA)
         println(query)
         assertIterableEquals(listOf(1, 3, 5, 10), query)
 
