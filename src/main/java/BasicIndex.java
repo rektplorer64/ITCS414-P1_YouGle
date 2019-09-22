@@ -17,7 +17,7 @@ public class BasicIndex implements BaseIndex {
     /**
      * A common ByteBuffer for reading integer. Specifically used for reading the PostingList header
      */
-    private static ByteBuffer intBuffer = ByteBuffer.allocateDirect(Integer.BYTES);
+    private static ByteBuffer intBuffer = ByteBuffer.allocate(Integer.BYTES);
 
     /**
      * Read a PostingList from the given FileChannel
@@ -71,7 +71,7 @@ public class BasicIndex implements BaseIndex {
         // Actual size of the buffer in Byte unit (Calculated by using max Prime Factor)
         int bufferSizeByte = calculateBestBufferSize(docFrequency);
         // Allocate the buffer
-        ByteBuffer docIdBuffer = ByteBuffer.allocateDirect(bufferSizeByte * Integer.BYTES);
+        ByteBuffer docIdBuffer = ByteBuffer.allocate(bufferSizeByte * Integer.BYTES);
 
         /* Start File WRITING iteration */
 
@@ -172,7 +172,7 @@ public class BasicIndex implements BaseIndex {
         int suitableBufferSize = calculateBestBufferSize(dataCounter);
 
         // Initialize the Buffer
-        ByteBuffer intBuffer = ByteBuffer.allocateDirect(suitableBufferSize * Integer.BYTES);
+        ByteBuffer intBuffer = ByteBuffer.allocate(suitableBufferSize * Integer.BYTES);
 
         int elemCounter = 0;
         final int actualLimit = dataToBeWritten.length / suitableBufferSize;

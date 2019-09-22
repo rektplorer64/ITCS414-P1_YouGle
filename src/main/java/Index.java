@@ -2,6 +2,16 @@ import java.io.*;
 import java.nio.channels.FileChannel;
 import java.util.*;
 
+/*
+This Code is modified by Section 1 Students of Mahidol University, the Faculty of ICT, 2019
+as part of a project in ITCS414 - Information Retrieval and Storage.
+
+The group consists of
+    1. Krittin      Chatrinan       ID 6088022
+    2. Anon         Kangpanich      ID 6088053
+    3. Tanawin      Wichit          ID 6088221
+ */
+
 /**
  * The class that responsible for Processing Document Data set by create a Binary index file
  */
@@ -140,7 +150,7 @@ public class Index{
 
             // Get output folder
             File blockFile = new File(outputDirname, block.getName());
-            // System.out.println("Processing block " + block.getName());
+            System.out.println("Processing block " + block.getName());
 
             // One Folder == One Block
             blockQueue.add(blockFile);
@@ -153,7 +163,7 @@ public class Index{
 
             // Temporary Data Structure for storing PostingList in a Block before writing
             // Integer Key -> termId & Set<Integer> -> a TreeSet for docId (Why TreeSet? -> We want sorting and no duplication capabilities!)
-            Map<Integer, Set<Integer>> blockPostingLists = new TreeMap<>();
+            Map<Integer, Set<Integer>> blockLevelPostings = new TreeMap<>();
 
             // Map<Integer, Pair<Long, Integer>> blockPostingDict = new TreeMap<>();
 
@@ -194,10 +204,10 @@ public class Index{
                             postingDict.put(currentWordId, null);       // Put it in, Mark byte position as -1L
                         }
 
-                        if (!blockPostingLists.containsKey(currentWordId)){
-                            blockPostingLists.put(currentWordId, new TreeSet<>());
+                        if (!blockLevelPostings.containsKey(currentWordId)){
+                            blockLevelPostings.put(currentWordId, new TreeSet<>());
                         }
-                        blockPostingLists.get(currentWordId).add(docId);
+                        blockLevelPostings.get(currentWordId).add(docId);
                         // System.out.println("Added termId: " + termDict.get(token) + " == " + token + " (doc=" + docId + ")");
                     }
                 }
@@ -222,8 +232,8 @@ public class Index{
              */
 
             /* Form an Array of PostingList */
-            for (int key : blockPostingLists.keySet()) {
-                PostingList newPosting = new PostingList(key, new ArrayList<>(blockPostingLists.get(key)));
+            for (int key : blockLevelPostings.keySet()) {
+                PostingList newPosting = new PostingList(key, new ArrayList<>(blockLevelPostings.get(key)));
 
                 // Count up the frequency
                 if (postingDict.containsKey(
@@ -241,7 +251,7 @@ public class Index{
                                    newPosting);                           // Write it down into individual block index file namely 0, 1, ... (basically the Block name)
             }
             bfc.close();
-            blockPostingLists = null;       // Clean up the reference so that it can be clean by System's GarbageCollector
+            blockLevelPostings = null;       // Clean up the reference so that it can be clean by System's GarbageCollector
         }
 
         // System.out.println(postingDict + "\n");
@@ -378,7 +388,7 @@ class IndexUtil{
      * <p>
      * If both has the same termId, merge their docId.
      * <p>
-     * Future Improvement: Reduce redundant READINGS by introducing variables to store PostingList when the file
+     * Advantages: This method reduces useless DISK READ by using temp variables to store PostingList when the file
      * pointer position is supposed to stay at the position before reading.
      *
      * @param fc1   FileChannel of the First File
@@ -390,6 +400,123 @@ class IndexUtil{
      * @throws IOException when there is an error thrown by the os
      */
     public static ArrayList<PostingList> mergeBinaryIndexFile(FileChannel fc1, FileChannel fc2, BaseIndex index)
+            throws IOException{
+
+        // Setup initial Pointer positions
+        long i = 0, j = 0;
+
+        // Setup the limit of the file
+        long sizeA = fc1.size(), sizeB = fc2.size();
+
+        // Get the comparator for PostingList
+        Comparator<PostingList> c = CollectionUtil.COMPARATOR_POSTING_LIST_TERM_ID;
+
+        // Results to be returned
+        ArrayList<PostingList> mergedResult = new ArrayList<>();
+
+        // Temp Variables for PostingList Reads
+        PostingList tempP1 = null;
+        PostingList tempP2 = null;
+
+        /*
+         While either first file limit is not reached or second file limit is not reached
+         TL;DR -> If one of the file pointer goes equal to its size AND both temp variables are NULL, the loop will stop immediately.
+        */
+        while (true){
+
+            if (((tempP1 == null) && (tempP2 == null)) && (i >= (sizeA - 1)) && (j >= (sizeB - 1))){
+                break;
+            }
+
+            PostingList p1;
+            if (tempP1 == null && i < sizeA){
+                p1 = index.readPosting(fc1);        // Read it out and store it to a variable p1
+                i = fc1.position();                 // Update Pointer Position of file A
+            }else{
+                p1 = tempP1;                        // Read PostingList from the temp variable
+            }
+
+            PostingList p2;
+            if (tempP2 == null && j < sizeB){
+                p2 = index.readPosting(fc2);        // Read it out and store it to a variable p2
+                j = fc2.position();                 // Update Pointer Position of file B
+            }else{
+                p2 = tempP2;                        // Read PostingList from the temp variable
+            }
+
+            if (p1 == null && p2 != null){          // If one is null and another is not null
+                mergedResult.add(p2);               // We Add the not null one to the Array.
+            }else if (p1 != null && p2 == null){
+                mergedResult.add(p1);
+            }
+
+            int comparison;                         // Compare it by PostingLists' termId
+            if (p1 != null && p2 != null){          // Both must not be Null
+                comparison = c.compare(p1, p2);
+            }else{                                  // Both PostingLists are Null mean it is the end of the file
+                break;                              // Stop the loop
+            }
+
+            if (comparison < 0){
+                // If the comparison is negative (termId of p1 is lower than p2's)
+                mergedResult.add(p1);                   // Add p1 to the result immediately
+
+                tempP1 = null;
+                tempP2 = p2;                            // Store p2 into its temp variable so we don't have to retrieve it again
+            }else if (comparison > 0){
+                // If the comparison is negative (termId of p2 is lower than p1's)
+                mergedResult.add(p2);                   // Add p2 to the result immediately
+
+                tempP1 = p1;                            // Store p1 into its temp variable so we don't have to retrieve it again
+                tempP2 = null;
+            }else{
+                // Merge the PostingList via combineDuplicatePostingList()
+                mergedResult.add(combineDuplicatePostingList(p1, p2));
+
+                tempP1 = null;
+                tempP2 = null;
+            }
+        }
+
+        /*
+         * POST-MERGE
+         */
+
+        if (i < sizeA){        // If file A is not totally read
+            // Add the rest to the result array
+            mergedResult.addAll(FileUtil.readAllPostingLists(fc1, index));
+        }
+
+        if (j < sizeB){        // If file B is not totally read
+            // Add the rest to the result array
+            mergedResult.addAll(FileUtil.readAllPostingLists(fc2, index));
+        }
+
+        // System.out.println("Merged Postings: " + Query.CollectionUtil.postingListArrayToString(mergedResult));
+        return mergedResult;
+    }
+
+    /**
+     * Read a pair of PostingList from both file (fc1 & fc2). Then compare them.
+     * <p>
+     * The PostingList that has lower termId gets stored in the result array, and has its file pointer.
+     * <p>
+     * If both has the same termId, merge their docId.
+     * <p>
+     * Future Improvement: Reduce redundant READINGS by introducing variables to store PostingList when the file pointer
+     * position is supposed to stay at the position before reading.
+     *
+     * @param fc1   FileChannel of the First File
+     * @param fc2   FileChannel of the Second File
+     * @param index Indexing Utility Instance for Reading
+     *
+     * @return A merged array of PostingList
+     *
+     * @throws IOException when there is an error thrown by the os
+     * @deprecated This method create overheads by reading the same PostingList all over repeatedly
+     */
+    @Deprecated
+    public static ArrayList<PostingList> expensivelyMergeBinaryIndexFile(FileChannel fc1, FileChannel fc2, BaseIndex index)
             throws IOException{
 
         // Setup initial Pointer positions
@@ -419,6 +546,7 @@ class IndexUtil{
             PostingList p2 = index.readPosting(fc2);    // Read it out and store it to a variable
             j = prev_j;
 
+            // System.out.println("Comparing: " + p1.getTermId() + " with " + p2.getTermId());
             int comparison = c.compare(p1, p2);         // Compare it by PostingLists' termId
 
             if (comparison < 0){
@@ -429,33 +557,28 @@ class IndexUtil{
                 i = fc1.position();                     // Set the pointer position of i to the post-read position
                 fc1.position(i);
 
-                fc2.position(
-                        j);                        // Move back p2's pointer to the pre-read position, because it is moved when we read it.
+                // Move back p2's pointer to the pre-read position, because it is moved when we read it.
+                fc2.position(j);
 
-                // j = prev_j;
 
             }else if (comparison > 0){
                 // If the comparison is negative (termId of p2 is lower than p1's)
 
                 mergedResult.add(p2);                   // Add p2 to the result immediately
 
-                // i = prev_i;
-                fc1.position(
-                        i);                        // Move back p1's pointer to the pre-read position, because it is moved when we read it.
+                // Move back p1's pointer to the pre-read position, because it is moved when we read it.
+                fc1.position(i);
 
                 j = fc2.position();                     // Set the pointer position of i to the post-read position
                 fc2.position(j);
             }else{
-
-                // Due to the way combiningDuplicatePostingList() works, it supports more than 2 PostingList to be merged.
-                // Supplying it with a List is the only option
+                // Merge the PostingList via combineDuplicatePostingList()
                 mergedResult.add(combineDuplicatePostingList(p1, p2));
 
                 // Update both i and j to the latest pointer positions
                 i = fc1.position();
                 j = fc2.position();
             }
-            // System.out.println("i=" + i + "/" + sizeA + " j=" + j + "/" + sizeB + " --> " + (i < sizeA) + " and " + (j < sizeB) + " = " + (i < sizeA && j < sizeB));
         }
 
         /*
@@ -475,6 +598,7 @@ class IndexUtil{
         // System.out.println("Merged Postings: " + Query.CollectionUtil.postingListArrayToString(mergedResult));
         return mergedResult;
     }
+
 
     /**
      * Deprecated method for Merging the whole PostingList.
@@ -500,8 +624,8 @@ class IndexUtil{
      *
      * @return merged list of PostingList
      *
-     * @deprecated The method is an overkill for PostingList pair because of the HashMap. If you wants to merge only
-     *         2 PostingList, see {@link #combineDuplicatePostingList(PostingList, PostingList)}
+     * @deprecated The method is an overkill for PostingList pair because of the HashMap. If you wants to merge only 2
+     *         PostingList, see {@link #combineDuplicatePostingList(PostingList, PostingList)}
      */
     @Deprecated
     public static List<PostingList> combineDuplicatePostingList(List<PostingList> lists){
@@ -523,8 +647,8 @@ class IndexUtil{
     }
 
     /**
-     * Combine a pair of PostingList with the same termId. Duplication of Document Id will be removed. Document Id
-     * will be automatically sorted.
+     * Combine a pair of PostingList with the same termId. Duplication of Document Id will be removed. Document Id will
+     * be automatically sorted.
      *
      * @param p1 PostingList 1
      * @param p2 PostingList 2
@@ -578,8 +702,7 @@ class FileUtil{
      *
      * @throws IOException
      */
-    public static List<PostingList> readAllPostingLists(FileChannel fileChannel, BaseIndex index)
-            throws IOException{
+    public static List<PostingList> readAllPostingLists(FileChannel fileChannel, BaseIndex index) throws IOException{
         ArrayList<PostingList> postingLists = new ArrayList<>();
         try{
             while (fileChannel.position() <= fileChannel.size() - 1){
@@ -595,8 +718,8 @@ class FileUtil{
     /**
      * Convert an Array of Int to an Array of Bytes
      * <p>
-     * The method was introduced because initially we want to bulk put multiple integers into ByteBuffer when
-     * writing. It is no longer used.
+     * The method was introduced because initially we want to bulk put multiple integers into ByteBuffer when writing.
+     * It is no longer used.
      *
      * @param value integer to be converted
      *

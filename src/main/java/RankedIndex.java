@@ -1,11 +1,25 @@
 import java.io.*;
 import java.util.*;
 
+/*
+This Code is modified by Section 1 Students of Mahidol University, the Faculty of ICT, 2019
+as part of a project in ITCS414 - Information Retrieval and Storage.
+
+The group consists of
+    1. Krittin      Chatrinan       ID 6088022
+    2. Anon         Kangpanich      ID 6088053
+    3. Tanawin      Wichit          ID 6088221
+ */
+
+/**
+ * This class holds the main method for testing the RankedQuery bonus credit
+ */
 class BonusRunner{
 
     public static String[] week4HomeworkQueries = {"car insurance"};
 
-    public static String[] customQueries = {"shortest path algorithm"};
+    public static String[] customQueries = {"suppawong tuarob", "mahidol", "thailand",
+                                            "suppawong tuarob conrad tucker"};
 
     public static String[] queriesSmall = {"hello", "bye", "you", "how are you", "how are you ?"};
 
@@ -22,6 +36,8 @@ class BonusRunner{
         StringBuilder str = new StringBuilder();
         str.append("Query Test Result: " + Arrays.toString(queries) + ":\n");
 
+        String datasetName = indexDirname.split("/")[3];
+
         long memoryBefore = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         long startTime = System.currentTimeMillis();
 
@@ -37,7 +53,25 @@ class BonusRunner{
             f.mkdirs();
         }
 
+        PrintStream printStream = System.out;
         for (int i = 0; i < queries.length; i++) {
+            File outputFile = new File(outputDir, datasetName + "-RankedResult" + i + "_" +
+                                                  queries[i].replaceAll("[^a-zA-Z0-9\\.\\-]", "_") + ".txt");
+            if (outputFile.exists()){
+                outputFile.delete();
+            }
+            try{
+                outputFile.createNewFile();
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+
+            try{
+                System.setOut(new PrintStream(outputFile));
+            }catch (FileNotFoundException e){
+                e.printStackTrace();
+            }
+
             System.out.println("Query[" + (i + 1) + "]:" + queries[i]);
             List<Integer> hitDocs = null;
             try{
@@ -61,11 +95,13 @@ class BonusRunner{
                 bw.write(output);
                 bw.close();
             }catch (IOException e){
-
                 e.printStackTrace();
             }
 
         }
+
+        System.setOut(printStream);
+        System.out.println("The Ranked Result is available at \"" + (new File(outputDir).getAbsolutePath()) + "\"");
         long memoryAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         long endTime = System.currentTimeMillis();
         str.append("\tMemory Used: " + ((memoryAfter - memoryBefore) / 1000000.0) + " MBs\n");
@@ -140,22 +176,33 @@ class BonusRunner{
         }
     }
 
+    /**
+     * Bonus Credit Tester for RankedQuery Please make sure that all JAVA files are untouched because there are
+     * dependencies from our implementations.
+     *
+     * @param args program parameters
+     */
     public static void main(String[] args){
+        // [HW WEEK 4] Taken From the Homework of Week 4 Slide
+        // This testcase requires mock up dataset which is not available in the submitted version
         // testBonusIndex("./datasets/week4Homework", "./index/bonus/week4Homework");
         // testQuery("Basic", "./index/bonus/week4Homework", week4HomeworkQueries, "./output/bonus/week4Homework");
-        // Taken From the Homework of Week 4 Slide
 
-        // testBonusIndex("./datasets/small", "./index/bonus/small");
-        // testQuery("Basic", "./index/bonus/small", customQueries, "./output/bonus/small");
+        testBonusIndex("./datasets/small", "./index/bonus/small");
+        testQuery("Basic", "./index/bonus/small", queriesSmall, "./output/bonus/small");
 
         // testBonusIndex("./datasets/large", "./index/bonus/large");
         // testQuery("Basic", "./index/bonus/large", queriesLarge, "./output/bonus/large");
 
-        testBonusIndex("./datasets/citeseer", "./index/bonus/citeseer");
-        testQuery("Basic", "./index/bonus/citeseer", queriesLarge, "./output/bonus/citeseer");
+        // testBonusIndex("./datasets/citeseer", "./index/bonus/citeseer");
+        // testQuery("Basic", "./index/bonus/citeseer", customQueries, "./output/bonus/citeseer");
     }
 }
 
+/**
+ * Bonus Credit Implementation of the Ranked query Please note that Ranked Query is not fully optimized by the time we
+ * submitted this code. Ranked Query could takes up to 20 minutes to run.
+ */
 class RankedQuery extends Query{
     /**
      * Map of Term Id -> Byte Position in the index file
@@ -198,13 +245,23 @@ class RankedQuery extends Query{
      */
     private RandomAccessFile indexFile = null;
 
-    // termId --> {docId --> score}
+    /**
+     * Map of termId -> {Map of docId -> score}
+     */
     private Map<Integer, Map<Integer, Double>> scoreMatrix = new HashMap<>();
+
+    /**
+     * Map of docId -> Norm value
+     */
     private Map<Integer, Double> normMap = new HashMap<>();
 
     private int totalDocument;
 
-    public RankedQuery(){ }
+    /**
+     * Constructor
+     */
+    public RankedQuery(){
+    }
 
     @Override
     public List<Integer> retrieve(String query) throws IOException{
@@ -233,16 +290,21 @@ class RankedQuery extends Query{
             }
         }
 
+        // Put all PostingList into a new ArrayList
         ArrayList<PostingList> queryTermPostingLists = new ArrayList<>(termIdPostingListMap.values());
+        // Sort all PostingList by its Document Frequency (Posting size)
         queryTermPostingLists.sort(CollectionUtil.COMPARATOR_POSTING_LIST_DOC_FREQ);
 
+        // Accumulator for Document Id
         TreeSet<Integer> docIdAccumulator = new TreeSet<>();
 
+        // [HW WEEK 4] Hardcoded Value for Week 4 Homework at the end of the slide
         // totalDocument = 811400;
 
         System.out.println("\n----------------------------------");
         System.out.println(" ** CONSTRUCTING QUERY VECTOR **");
         System.out.println("----------------------------------");
+
         // Construct the Document Vector for Query
         DocumentVector queryVector = new DocumentVector(-1);
         for (PostingList p : queryTermPostingLists) {
@@ -255,6 +317,7 @@ class RankedQuery extends Query{
                 }
             }
 
+            // Count the term frequency inside the Query
             int termFreqInQuery = 0;
             for (String s : queries) {
                 if (s.equals(term)){
@@ -262,36 +325,57 @@ class RankedQuery extends Query{
                 }
             }
 
+            // Calculate TF weight
             double termFrequency = RankingMathHelper.calculateTermFrequency(termFreqInQuery);
-            System.out.println("\nTerm #"+ p.getTermId() + "\t\tdf = " + freqDict.get(p.getTermId()));
+            System.out.println("\nTerm #" + p.getTermId() + "\t\tdf = " + freqDict.get(p.getTermId()));
+
+            // Calculate IDF weight
             double idfScore = RankingMathHelper.calculateInvertedDocFrequency(totalDocument,
                                                                               freqDict.get(p.getTermId()));
 
-            System.out.println("Score: tf = " + termFrequency + "\t\t×\tidf = " + idfScore + "\t=>\t" + (termFrequency * idfScore));
+            System.out.println("Score: tf = " + termFrequency + "\t\t×\tidf = " + idfScore + "\t=>\t" +
+                               (termFrequency * idfScore));
+
+            // Calculate Score/Weight of the term inside the query
+            // Then add it into the Query Vector
             queryVector.getScoreMatrix().put(p.getTermId(), termFrequency * idfScore);
         }
+        // We finally calculate Norm of the Query
         queryVector.setNorm(RankingMathHelper.calculateNorm(queryVector.getScoreMatrix()));
         System.out.println();
-        // TODO: We got the norm of the query vector, now we have to calculate cosine similarity against all doc related
 
-        // System.out.println(normMap);
         // System.out.println(scoreMatrix);
+        // System.out.println(normMap);
+        // TODO: We got the norm of the query vector, now we have to calculate cosine similarity against all doc related
 
         System.out.println("----------------------------------");
         System.out.println("** CALCULATING SIMILARITY SCORE **");
         System.out.println("----------------------------------");
         TreeMap<Double, Integer> ranked = new TreeMap<>();
         for (int docId : docIdAccumulator) {
+            // Build Document Vector of off maps
             DocumentVector documentVector = new DocumentVector(docId, normMap.get(docId), scoreMatrix.get(docId));
-            double similarity = RankingMathHelper.cosineSimilarity(documentVector, queryVector);
+
+            // Calculate Cosine Similarity
+            double similarity = RankingMathHelper.calculateCosineSimilarity(documentVector, queryVector);
+
+            // Put it into the result map
             ranked.put(similarity, docId);
         }
 
         System.out.println("\n\n** RESULT MAP = " + ranked);
-        return printRankedResult(ranked);
+        return printRankedResult(ranked, query);
     }
 
-    private ArrayList<Integer> printRankedResult(TreeMap<Double, Integer> rankedResult){
+    /**
+     * Prints Top-10 Ranking and Return sorted list
+     *
+     * @param rankedResult result from query
+     * @param query        query string
+     *
+     * @return array of document id sorted by ranked in descending order
+     */
+    private ArrayList<Integer> printRankedResult(TreeMap<Double, Integer> rankedResult, String query){
         ArrayList<Double> scores = new ArrayList<>(rankedResult.keySet());
         Collections.reverse(scores);
 
@@ -300,10 +384,11 @@ class RankedQuery extends Query{
         ArrayList<Integer> rankedDocId = new ArrayList<>();
         int i = 1;
         System.out.println();
-        System.out.println("FINAL DOCUMENT RANKING");
-        for (double score : trimmed){
+        System.out.println("FINAL DOCUMENT RANKING FOR QUERY: " + query);
+        for (double score : trimmed) {
             int docId = rankedResult.get(score);
-            System.out.println("Rank #" + (i++) + "\twith Score = " + String.format("%.6f", score) + "\tis\t" + docDict.get(docId) + "\t(#" + docId +")");
+            System.out.println("Rank #" + (i++) + "\twith Score = " + String.format("%.6f", score) + "\tis\t" +
+                               docDict.get(docId) + "\t(#" + docId + ")");
             rankedDocId.add(docId);
         }
         return rankedDocId;
@@ -312,7 +397,6 @@ class RankedQuery extends Query{
     @Override
     String outputQueryResult(List<Integer> res){
         StringBuilder resultStringBuilder = new StringBuilder();
-        // Collections.sort(res);
         if (!res.isEmpty()){
             for (int docId : res) {
                 String docName = docDict.get(docId);
@@ -370,6 +454,7 @@ class RankedQuery extends Query{
         }
         postReader.close();
 
+        // TODO: READ SCORE/WEIGHT FROM MATRIX
         RandomAccessFile docTermFreqFile = new RandomAccessFile(new File(indexDirname, "score.matrix"), "rw");
         while (docTermFreqFile.getFilePointer() < docTermFreqFile.length()){
             // System.out.println(docTermFreqFile.getFilePointer() + "/" + docTermFreqFile.length());
@@ -383,15 +468,35 @@ class RankedQuery extends Query{
         this.running = true;
     }
 
+    /**
+     * Ranking Mathematical Equation
+     */
     public static class RankingMathHelper{
+
+        /**
+         * Calculates Term Frequency (TF) Weight of the given Term Frequency
+         *
+         * @param frequency term frequency
+         *
+         * @return TF weight
+         */
         static double calculateTermFrequency(int frequency){
-            if (frequency == 0){
+            if (frequency == 0){    // If it is ZERO, don't bother calculating it.
                 return 0d;
             }
             return 1d + Math.log10(frequency);
+            // [HW WEEK 4] TF in the Homework requires a raw TF
             // return frequency;
         }
 
+        /**
+         * Calculates Inverted Document Frequency (IDF) weight of the Document Frequency of the The given term.
+         *
+         * @param totalDocument actual number of the documents in the dataset
+         * @param docFrequency  actual number of the documents that contain a term
+         *
+         * @return IDF weight
+         */
         static double calculateInvertedDocFrequency(int totalDocument, int docFrequency){
             return Math.log10((double) totalDocument / docFrequency);
         }
@@ -414,9 +519,10 @@ class RankedQuery extends Query{
             return normMap;
         }
 
-        static double cosineSimilarity(DocumentVector doc, DocumentVector query){
+        static double calculateCosineSimilarity(DocumentVector doc, DocumentVector query){
             double sum = 0;
             System.out.println("\n** Cosine Similarity of Query & Doc #" + doc.getDocId());
+            System.out.println("\tif-idf = " + doc.getScoreMatrix());
             System.out.println("\tDoc Norm = " + doc.getNorm());
             for (int termId : query.getScoreMatrix().keySet()) {
                 if (doc.getScoreMatrix().get(termId) == null){
@@ -425,7 +531,8 @@ class RankedQuery extends Query{
                 double queryScore = query.getScoreMatrix().get(termId);
                 double docScore = doc.getScoreMatrix().get(termId);
                 System.out.println("\n\tTerm #" + termId);
-                System.out.println("\tScore -> Query = " + queryScore + "\t\t×\tDoc = " + docScore + "\t=>\t" + (queryScore * docScore));
+                System.out.println("\tScore -> Query = " + queryScore + "\t\t×\tDoc = " + docScore + "\t=>\t" +
+                                   (queryScore * docScore));
                 sum += queryScore * docScore;
             }
 
@@ -436,6 +543,11 @@ class RankedQuery extends Query{
     }
 }
 
+/**
+ * Part of Bonus implementation of the RankedQuery Our goal for recreating the whole project again inside this file is
+ * to ISOLATE the algorithm which is not entirely the same. **The other reason is that the given skeleton code of this
+ * project is not modular; therefore overriding small portion of a class is impossible.**
+ */
 public class RankedIndex{
 
     /**
@@ -458,6 +570,9 @@ public class RankedIndex{
      */
     private LinkedList<File> blockQueue = new LinkedList<File>();
 
+    /**
+     * Map between termId and docFreq
+     */
     private Map<Integer, Integer> termFreqMap = new TreeMap<>();
 
     /**
@@ -495,7 +610,6 @@ public class RankedIndex{
             System.err.println("Invalid data directory: " + dataDirname);
             return -1;
         }
-
 
         /* Get output directory*/
         File outdir = new File(outputDirname);
@@ -674,8 +788,7 @@ public class RankedIndex{
             RandomAccessFile mf = new RandomAccessFile(combfile, "rw");
 
             // Calls a static helper method inside IndexHelpers Class (a nested inner class)
-            List<PostingList> mergedList = IndexUtil.mergeBinaryIndexFile(bf1.getChannel(), bf2.getChannel(),
-                                                                          index);
+            List<PostingList> mergedList = IndexUtil.mergeBinaryIndexFile(bf1.getChannel(), bf2.getChannel(), index);
             // finalList.sort(Query.CollectionUtil.COMPARATOR_POSTING_LIST_TERM_ID);
 
             // System.out.println(Query.CollectionUtil.postingListArrayToString(mergedList));
@@ -703,8 +816,7 @@ public class RankedIndex{
             blockQueue.add(combfile);
         }
 
-        // Hardcoded variables to reflect Week 4 homework
-
+        // [HW WEEK 4] Hardcoded variables to reflect Week 4 homework
         // int[] hardCodedDocFreq = new int[]{18165, 6723, 25235, 19241};
         // int i = 0;
         // for (int termId : postingDict.keySet()) {
@@ -754,6 +866,13 @@ public class RankedIndex{
         return totalFileCount;
     }
 
+    /**
+     * Calculate TF-IDF weight for every term in every document
+     *
+     * @param totalFileCount number of total documents
+     *
+     * @return map or matrix of if-idf weight for each document and term
+     */
     private Map<Integer, Map<Integer, Double>> calculateTfIdf(int totalFileCount){
         Map<Integer, Map<Integer, Double>> scoreMatrix = new TreeMap<>();
 
@@ -779,6 +898,9 @@ public class RankedIndex{
     }
 }
 
+/**
+ * A package object which contains Document Id, Norm and Map of Term Id to Score/Weight
+ */
 class DocumentVector{
     private int docId;
     private double norm;
@@ -819,7 +941,20 @@ class DocumentVector{
     }
 }
 
+/**
+ * Extended Indexer class for reading and writing of the Score/Weight Matrix
+ */
 class RankedIndexer extends BasicIndex{
+
+    /**
+     * Read document vector from the given RandomAccessFile
+     *
+     * @param file file to be read
+     *
+     * @return vector of document
+     *
+     * @throws IOException in case the file cannot be read or couldn't be found
+     */
     public DocumentVector readDocFreqIndex(RandomAccessFile file) throws IOException{
         int docId = file.readInt();
         int termMapSize = file.readInt();
@@ -834,6 +969,16 @@ class RankedIndexer extends BasicIndex{
         return new DocumentVector(docId, norm, scoreMat);
     }
 
+    /**
+     * Write document vector components into the file
+     *
+     * @param file     file to be written
+     * @param docId    document id of the vector
+     * @param scoreMap mapping between termId and score/weight
+     * @param norm     the norm of the vector
+     *
+     * @throws IOException in case the file cannot be written or couldn't be found
+     */
     public void writeDocFreqIndex(RandomAccessFile file, int docId, Map<Integer, Double> scoreMap, double norm)
             throws IOException{
         file.writeInt(docId);
