@@ -102,11 +102,14 @@ class BonusRunner{
 
         System.setOut(printStream);
         System.out.println("The Ranked Result is available at \"" + (new File(outputDir).getAbsolutePath()) + "\"");
+
         long memoryAfter = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
         long endTime = System.currentTimeMillis();
+
         str.append("\tMemory Used: " + ((memoryAfter - memoryBefore) / 1000000.0) + " MBs\n");
         str.append("\tTime Used: " + ((endTime - startTime) / 1000.0) + " secs\n");
         str.append("\tNo problem. Have a good day.\n");
+
         System.out.println(str.toString());
 
         //Writing out the stats to a log file
@@ -148,6 +151,7 @@ class BonusRunner{
         long endTime = System.currentTimeMillis();
         File indexFile = new File(indexDirname, "corpus.index");
         long indexSize = indexFile.length();
+
         str.append("\tTotal Files Indexed: " + numFiles + "\n");
         str.append("\tMemory Used: " + ((memoryAfter - memoryBefore) / 1000000.0) + " MBs\n");
         str.append("\tTime Used: " + ((endTime - startTime) / 1000.0) + " secs\n");
@@ -202,6 +206,8 @@ class BonusRunner{
 /**
  * Bonus Credit Implementation of the Ranked query Please note that Ranked Query is not fully optimized by the time we
  * submitted this code. Ranked Query could takes up to 20 minutes to run.
+ *
+ * The code is written to run almost independently from the rest of the codebase.
  */
 class RankedQuery extends Query{
     /**
@@ -263,6 +269,15 @@ class RankedQuery extends Query{
     public RankedQuery(){
     }
 
+    /**
+     * Retrieves Ranked Result based on given Query
+     *
+     * @param query query to be search
+     *
+     * @return list of Document Id containing the given query
+     *
+     * @throws IOException when there is an unexpected error related to file reading
+     */
     @Override
     public List<Integer> retrieve(String query) throws IOException{
         // Manipulate the Query
@@ -394,6 +409,13 @@ class RankedQuery extends Query{
         return rankedDocId;
     }
 
+    /**
+     * Fetches documents based on given Document Id
+     *
+     * @param res result document id
+     *
+     * @return string to be written to a file
+     */
     @Override
     String outputQueryResult(List<Integer> res){
         StringBuilder resultStringBuilder = new StringBuilder();
@@ -408,6 +430,15 @@ class RankedQuery extends Query{
         return resultStringBuilder.toString();
     }
 
+    /**
+     * Initiates the indexing process by Reading 1. Binary Index file 2. Term dictionary file 3. Document dictionary
+     * file 4. Binary Score/Weight matrix file
+     *
+     * @param indexMode    Indexing mode String
+     * @param indexDirname Index output directory
+     *
+     * @throws IOException when one of the files could not be read
+     */
     @Override
     public void runQueryService(String indexMode, String indexDirname) throws IOException{
 
@@ -455,17 +486,29 @@ class RankedQuery extends Query{
         postReader.close();
 
         // TODO: READ SCORE/WEIGHT FROM MATRIX
+        readWeightMatrixFromFile(indexDirname);
+
+        this.running = true;
+    }
+
+    /**
+     * Read the Entire file of Score/Weight matrix to the memory
+     * <p>
+     * Future Improvement: Introduce another file named Score.Dict to store the Pointer of the matrix
+     *
+     * @param indexDirname string of the directory of the index file that conform the appropriate the format
+     *
+     * @throws IOException
+     */
+    private void readWeightMatrixFromFile(String indexDirname) throws IOException{
         RandomAccessFile docTermFreqFile = new RandomAccessFile(new File(indexDirname, "score.matrix"), "rw");
         while (docTermFreqFile.getFilePointer() < docTermFreqFile.length()){
             // System.out.println(docTermFreqFile.getFilePointer() + "/" + docTermFreqFile.length());
             DocumentVector vector = index.readDocFreqIndex(docTermFreqFile);
-
             scoreMatrix.put(vector.getDocId(), vector.getScoreMatrix());
             normMap.put(vector.getDocId(), vector.getNorm());
         }
         docTermFreqFile.close();
-
-        this.running = true;
     }
 
     /**
@@ -501,12 +544,26 @@ class RankedQuery extends Query{
             return Math.log10((double) totalDocument / docFrequency);
         }
 
+        /**
+         * Calculates Norm of the given Mapping of Integer and Score/Weight
+         *
+         * @param scoreVector Map of termId Int and Score/Weight Float
+         *
+         * @return calculated score matrix
+         */
         static Double calculateNorm(Map<Integer, Double> scoreVector){
             Map<Integer, Map<Integer, Double>> wrapper = new HashMap<>();
             wrapper.put(0, scoreVector);
             return RankingMathHelper.calculateNormMatrix(wrapper).get(0);
         }
 
+        /**
+         * Calculate a matrix to get the norm of the vector for each entry inside the key set of scoreMatrix
+         *
+         * @param scoreMatrix Mapping between docId and Map of termId and score/weight
+         *
+         * @return calculated vector norm for each docId
+         */
         static Map<Integer, Double> calculateNormMatrix(Map<Integer, Map<Integer, Double>> scoreMatrix){
             Map<Integer, Double> normMap = new TreeMap<>();
             for (Map.Entry<Integer, Map<Integer, Double>> entry : scoreMatrix.entrySet()) {
@@ -519,6 +576,13 @@ class RankedQuery extends Query{
             return normMap;
         }
 
+        /**
+         * Calculate the cosine similarity between two Document Vectors
+         * @param doc vector of Document
+         * @param query vector of Query
+         *
+         * @return the cosine similarity
+         */
         static double calculateCosineSimilarity(DocumentVector doc, DocumentVector query){
             double sum = 0;
             System.out.println("\n** Cosine Similarity of Query & Doc #" + doc.getDocId());
@@ -545,8 +609,10 @@ class RankedQuery extends Query{
 
 /**
  * Part of Bonus implementation of the RankedQuery Our goal for recreating the whole project again inside this file is
- * to ISOLATE the algorithm which is not entirely the same. **The other reason is that the given skeleton code of this
- * project is not modular; therefore overriding small portion of a class is impossible.**
+ * to ISOLATE the algorithm which is not entirely the same.
+ * <p>
+ * **The other reason is that the given skeleton code of this project is not modular; therefore overriding small portion
+ * of a class is impossible.**
  */
 public class RankedIndex{
 
@@ -600,6 +666,15 @@ public class RankedIndex{
      */
     private RankedIndexer index = null;
 
+    /**
+     * Main method to start the ranked indexing process.
+     *
+     * @param method        :Indexing method. "Basic" by default, but extra credit will be given for those who can
+     *                      implement variable byte (VB) or Gamma index compression algorithm
+     * @param dataDirname   :relative path to the dataset root directory. E.g. "./datasets/small"
+     * @param outputDirname :relative path to the output directory to store index. You must not assume that this
+     *                      directory exist. If it does, you must clear out the content before indexing.
+     */
     public int runIndexer(String dataDirname, String outputDirname) throws IOException{
         /* Get index */
         index = new RankedIndexer();
@@ -747,10 +822,10 @@ public class RankedIndex{
                                 newPosting.getTermId());                     // Add the current document frequency
                     }
                     pair.setSecond(pair.getSecond() +
-                                   newPosting.getList().size());         // Add up with other document frequency
+                                   newPosting.getList().size());             // Add up with other document frequency
                 }
                 index.writePosting(bfc.getChannel(),
-                                   newPosting);                           // Write it down into individual block index file namely 0, 1, ... (basically the Block name)
+                                   newPosting);                              // Write it down into individual block index file namely 0, 1, ... (basically the Block name)
             }
             bfc.close();
             blockPostingLists = null;       // Clean up the reference so that it can be clean by System's GarbageCollector
@@ -817,42 +892,26 @@ public class RankedIndex{
         }
 
         // [HW WEEK 4] Hardcoded variables to reflect Week 4 homework
-        // int[] hardCodedDocFreq = new int[]{18165, 6723, 25235, 19241};
-        // int i = 0;
-        // for (int termId : postingDict.keySet()) {
-        //     postingDict.get(termId).setSecond(hardCodedDocFreq[i++]);
-        // }
-        // System.out.println("termDict=" + termDict);
-        // System.out.println("docTermFrequency=" + docTermFrequency);
-        // System.out.println("postingDict=" + postingDict);
-        // totalFileCount = 811400;
+        // mockUpHomework4();
 
         /* Dump constructed index back into file system */
         File indexFile = blockQueue.removeFirst();
         indexFile.renameTo(new File(outputDirname, "corpus.index"));
 
-        BufferedWriter termWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "term.dict")));
-        for (String term : termDict.keySet()) {
-            termWriter.write(term + "\t" + termDict.get(term) + "\n");
-        }
-        termWriter.close();
+        writeDictionaryMapToFile(outputDirname, "term.dict", termDict);
 
-        BufferedWriter docWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "doc.dict")));
-        for (String doc : docDict.keySet()) {
-            docWriter.write(doc + "\t" + docDict.get(doc) + "\n");
-        }
-        docWriter.close();
+        writeDictionaryMapToFile(outputDirname, "doc.dict", docDict);
 
-        BufferedWriter postWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "posting.dict")));
-        for (Integer termId : postingDict.keySet()) {
-            postWriter.write(
-                    termId + "\t" + postingDict.get(termId).getFirst() + "\t" + postingDict.get(termId).getSecond() +
-                    "\t" + termFreqMap.get(termId) + "\n");
-        }
-        postWriter.close();
+        writePostingDictionaryToFile(outputDirname);
 
 
         // TODO: Calculate Score
+        finalizeAndWriteWeightMatrix(outputDirname);
+
+        return totalFileCount;
+    }
+
+    private void finalizeAndWriteWeightMatrix(String outputDirname) throws IOException{
         Map<Integer, Map<Integer, Double>> ifIdf = calculateTfIdf(totalFileCount);
 
         // DocId -> Norms Value
@@ -862,8 +921,37 @@ public class RankedIndex{
             index.writeDocFreqIndex(docTermFreqFile, entry.getKey(), entry.getValue(), norms.get(entry.getKey()));
         }
         docTermFreqFile.close();
+    }
 
-        return totalFileCount;
+    private void writePostingDictionaryToFile(String outputDirname) throws IOException{
+        BufferedWriter postWriter = new BufferedWriter(new FileWriter(new File(outputDirname, "posting.dict")));
+        for (Integer termId : postingDict.keySet()) {
+            postWriter.write(
+                    termId + "\t" + postingDict.get(termId).getFirst() + "\t" + postingDict.get(termId).getSecond() +
+                    "\t" + termFreqMap.get(termId) + "\n");
+        }
+        postWriter.close();
+    }
+
+    private void writeDictionaryMapToFile(String outputDirname, String s, Map<String, Integer> termDict)
+            throws IOException{
+        BufferedWriter termWriter = new BufferedWriter(new FileWriter(new File(outputDirname, s)));
+        for (String term : termDict.keySet()) {
+            termWriter.write(term + "\t" + termDict.get(term) + "\n");
+        }
+        termWriter.close();
+    }
+
+    private void mockUpHomework4(){
+        int[] hardCodedDocFreq = new int[]{18165, 6723, 25235, 19241};
+        int i = 0;
+        for (int termId : postingDict.keySet()) {
+            postingDict.get(termId).setSecond(hardCodedDocFreq[i++]);
+        }
+        System.out.println("termDict=" + termDict);
+        System.out.println("docTermFrequency=" + docTermFrequency);
+        System.out.println("postingDict=" + postingDict);
+        totalFileCount = 811400;
     }
 
     /**

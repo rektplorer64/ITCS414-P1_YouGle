@@ -150,7 +150,7 @@ public class Query{
      *
      * @return list of Document Id containing the given query
      *
-     * @throws IOException
+     * @throws IOException when there is an unexpected error related to file reading
      */
     public List<Integer> retrieve(String query) throws IOException{
         if (!running){
