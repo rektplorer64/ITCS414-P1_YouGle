@@ -5,7 +5,19 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+/*
+This Code is modified by Section 1 Students of Mahidol University, the Faculty of ICT, 2019
+as part of a project in ITCS414 - Information Retrieval and Storage.
 
+The group consists of
+    1. Krittin      Chatrinan       ID 6088022
+    2. Anon         Kangpanich      ID 6088053
+    3. Tanawin      Wichit          ID 6088221
+ */
+
+/**
+ * The class facilitates index files reading and writing
+ */
 public class BasicIndex implements BaseIndex {
 
     /**

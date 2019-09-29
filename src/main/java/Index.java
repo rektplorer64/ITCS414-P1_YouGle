@@ -150,7 +150,7 @@ public class Index{
 
             // Get output folder
             File blockFile = new File(outputDirname, block.getName());
-            System.out.println("Processing block " + block.getName());
+            // System.out.println("Processing block " + block.getName());
 
             // One Folder == One Block
             blockQueue.add(blockFile);
