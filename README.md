@@ -6,7 +6,7 @@ This is a simple Implementation for a Search Engine.
 A simple indexing and retrieval system for a search engine. More specifically, it involves the Implementation a simple indexer that builds an uncompressed index over a corpus, and implement
 retrieval for Boolean conjunctive queries.
 
-Furthermore, the implementation of TF-IDF Weight with Cosine Similarity is also implemented in this project.
+Furthermore, the implementation of TF-IDF Weight with Cosine Similarity is also included in this project.
 
 ## 😀 Our Members
 |#|Name|Surname|Nickname|Student ID|
