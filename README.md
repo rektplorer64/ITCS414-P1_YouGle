@@ -8,7 +8,7 @@ retrieval for Boolean conjunctive queries.
 
 Furthermore, the implementation of TF-IDF Weight with Cosine Similarity is also implemented in this project.
 
-## Our Members
+## 😀 Our Members
 |#|Name|Surname|Nickname|Student ID|
 |-|-|-|-|-|
 |1|Anon|Kangpanich|Non|6088053|
